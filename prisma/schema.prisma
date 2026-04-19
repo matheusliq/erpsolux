@@ -1,0 +1,204 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+
+model categories {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  type           transaction_type
+  color          String?          @default("#cbd5e1")
+  monthly_budget Decimal?         @db.Decimal(15, 2)
+  created_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  transactions   transactions[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model entities {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  type         String?
+  document     String?
+  phone        String?
+  email        String?
+  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  transactions transactions[]
+  projects     projects[]
+}
+
+model payment_methods {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  transactions transactions[]
+}
+
+model profiles {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  email        String?
+  phone_number String?
+  role         String?   @default("staff")
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model users {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  username   String    @unique
+  password   String
+  role       String?   @default("partner")
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  
+  transactions transactions[] @relation("UserTransactions")
+  audit_logs   audit_logs[]
+}
+
+model projects {
+  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  description          String?
+  client_name          String?
+  entity_id            String?         @db.Uuid  // FK para a tabela entities (cliente da obra)
+  status               project_status? @default(negotiation)
+  start_date           DateTime?       @db.Date
+  deadline             DateTime?       @db.Date
+  contract_value       Decimal?        @default(0.00) @db.Decimal(15, 2)
+  budget_solux_reserve Decimal?        @default(0.00) @db.Decimal(15, 2)
+  partners_split       Json?           
+  created_at           DateTime?       @default(now()) @db.Timestamptz(6)
+  transactions         transactions[]
+  project_services     project_services[]
+  entity               entities?       @relation(fields: [entity_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model transactions {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  amount               Decimal             @db.Decimal(15, 2)
+  type                 transaction_type
+  status               transaction_status? @default(Atrasado)
+  due_date             DateTime            @db.Date
+  payment_date         DateTime?           @db.Date
+  category_id          String?             @db.Uuid
+  project_id           String?             @db.Uuid
+  project_service_id   String?             @db.Uuid  // Vínculo direto com o serviço da obra
+  material_id          String?             @db.Uuid  // Material consumido (custo avulso)
+  entity_id            String?             @db.Uuid
+  payment_method_id    String?             @db.Uuid
+  is_resale            Boolean?            @default(false) // Distingue revenda de custo operacional
+  cost_amount         Decimal?            @default(0.00) @db.Decimal(15, 2)
+  markup              Decimal?            @default(1.00) @db.Decimal(10, 2)
+  receipt_url          String?
+  notes                String?
+  created_by           String?             @db.Uuid
+  created_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  
+  categories           categories?         @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  entities             entities?           @relation(fields: [entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payment_methods      payment_methods?    @relation(fields: [payment_method_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects             projects?           @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_services     project_services?   @relation(fields: [project_service_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  materials            materials?          @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                users?              @relation("UserTransactions", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum project_status {
+  negotiation
+  active
+  completed
+  paused
+}
+
+enum transaction_status {
+  Atrasado
+  Pago
+  Cancelado
+  Agendado
+}
+
+enum transaction_type {
+  Entrada
+  Sa_da   @map("Saída")
+}
+
+model audit_logs {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action      String    // "Criação", "Atualização", "Exclusão"
+  entity_type String    // "Lançamento", "Obra", "Entidade", "Categoria"
+  entity_id   String    @db.Uuid
+  user_id     String?   @db.Uuid
+  details     Json      // Armazena "old" e "new" dos campos alterados
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  users       users?    @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model materials {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sku            String           @unique  // Código de 5 dígitos ex: "TIN-00042"
+  category       String
+  description    String           @unique
+  unit           String
+  cost_price     Decimal          @default(0.00) @db.Decimal(10, 2)
+  markup_factor  Decimal          @default(1.40) @db.Decimal(4, 2)
+  is_resale      Boolean          @default(true)
+  created_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  
+  service_items  service_items[]
+  transactions   transactions[]
+}
+
+model services {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 String           @unique
+  name                 String
+  executor             String           @default("Solux")
+  fds                  Int              @default(0)
+  mo_value             Decimal          @default(0.00) @db.Decimal(10, 2)
+  mo_sell_value        Decimal          @default(0.00) @db.Decimal(10, 2)
+  created_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  
+  service_items        service_items[]
+  project_services     project_services[]
+}
+
+model service_items {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_id  String    @db.Uuid
+  material_id String    @db.Uuid
+  quantity    Decimal   @default(1.00) @db.Decimal(10, 2)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  service     services  @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  material    materials @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@unique([service_id, material_id])
+}
+
+model project_services {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id           String    @db.Uuid
+  service_id           String    @db.Uuid
+  quantity             Decimal   @default(1.00) @db.Decimal(10, 2)
+  safety_margin_type   String?   // "percentage" | "fixed"
+  safety_margin_value  Decimal?  @default(0.00) @db.Decimal(10, 2)
+  mo_type              String?   @default("fixed")  // "fixed" | "markup"
+  mo_custom_value      Decimal?  @db.Decimal(10, 2) // Valor fixo ou fator de markup
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+
+  project      projects  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  service      services  @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  transactions transactions[]
+
+  @@unique([project_id, service_id])
+}
