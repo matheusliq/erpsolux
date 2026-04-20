@@ -41,6 +41,7 @@ async function main() {
           },
           create: {
             id: material.id,
+            sku: material.sku || `MIG-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`,
             category: material.category,
             description: material.description,
             unit: material.unit,
