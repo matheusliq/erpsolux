@@ -233,8 +233,6 @@ async function main() {
                 executor: "Solux",
                 mo_value: svc.mo_value,
                 mo_sell_value: svc.mo_sell_value,
-                logistics_value: svc.logistics_value,
-                logistics_sell_value: svc.logistics_sell_value,
                 fds: 0,
             },
             update: {
