@@ -12,19 +12,7 @@
  * - Itens sem serviço vinculado → transactions gerais de Obra (Agendado).
  */
 
-import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
-
-// O Prisma 7 neste projeto usa engineType "client", que exige o adapter.
-// Usamos o pooler Supabase (6543) SEM o flag pgbouncer=true — o adapter pg
-// gerencia as conexões internamente e não precisa do PgBouncer workaround.
-const rawUrl = process.env.DATABASE_URL ?? "";
-const cleanUrl = rawUrl.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "");
-
-const pool = new Pool({ connectionString: cleanUrl });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import prisma from "../lib/prisma";
 
 
 // ─── Dados da Obra ────────────────────────────────────────────────────────────
@@ -66,7 +54,6 @@ const SERVICOS = [
         code: "S1-VIA",
         name: "Calçada recepção, batentes e guarita (apenas pintura)",
         mo_value: 420.00, mo_sell_value: 630.00,
-        logistics_value: 26.25, logistics_sell_value: 36.75,
         materiais: [
             { description: "Tinta de Trânsito Branca 18L",  quantity: 1.5 },
             { description: "Rolo para Demarcação 23cm",     quantity: 2 },
@@ -78,7 +65,6 @@ const SERVICOS = [
         code: "S2-VIA",
         name: "Pintura Lixeiras",
         mo_value: 380.00, mo_sell_value: 570.00,
-        logistics_value: 26.25, logistics_sell_value: 36.75,
         materiais: [
             { description: "Tinta de Trânsito Branca 18L",  quantity: 2 },
             { description: "Tinta de Trânsito Amarela 18L", quantity: 1 },
@@ -89,7 +75,6 @@ const SERVICOS = [
         code: "S3-VIA",
         name: "Calçada (com correções alvenaria) e pintura — ao lado da guarita",
         mo_value: 280.00, mo_sell_value: 420.00,
-        logistics_value: 26.25, logistics_sell_value: 36.75,
         materiais: [
             { description: "Tinta de Trânsito Branca 18L",  quantity: 1 },
             { description: "Pincel Chanfrado 4\"",           quantity: 3 },
@@ -99,7 +84,6 @@ const SERVICOS = [
         code: "S4-VIA",
         name: "Vagas e faixa de pedestre (com asfalto)",
         mo_value: 320.00, mo_sell_value: 480.00,
-        logistics_value: 26.25, logistics_sell_value: 36.75,
         materiais: [
             { description: "Tinta de Trânsito Amarela 18L", quantity: 1.5 },
             { description: "Tinta de Trânsito Branca 18L",  quantity: 1 },
@@ -111,7 +95,6 @@ const SERVICOS = [
         code: "S5-VIA",
         name: "Reparos piso Epóxi (buracos e imperfeições)",
         mo_value: 450.00, mo_sell_value: 675.00,
-        logistics_value: 26.25, logistics_sell_value: 36.75,
         materiais: [
             { description: "Tinta de Trânsito Branca 18L",  quantity: 1 },
             { description: "Aguarrás Mineral 5L",           quantity: 1 },
@@ -122,7 +105,6 @@ const SERVICOS = [
         code: "S6-VIA",
         name: "Passarela e faixas condutoras (externa em L)",
         mo_value: 220.00, mo_sell_value: 330.00,
-        logistics_value: 26.25, logistics_sell_value: 36.75,
         materiais: [
             { description: "Tinta de Trânsito Branca 18L",  quantity: 2 },
             { description: "Microesferas de Vidro 25kg",    quantity: 1 },
@@ -265,7 +247,7 @@ async function main() {
             const mat = MATERIAIS.find(x => x.description === m.description);
             return a + (mat ? mat.cost_price * mat.markup_factor * m.quantity : 0);
         }, 0);
-        return acc + s.mo_sell_value + s.logistics_sell_value + matTotal;
+        return acc + s.mo_sell_value + matTotal;
     }, 0);
 
     // 5. Upsert da Obra

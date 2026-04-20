@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getObraDetalhes } from "@/app/actions/clientes";
 import { getCategories } from "@/app/actions/categorias";
 import { notFound } from "next/navigation";

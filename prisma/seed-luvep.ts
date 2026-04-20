@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 // Luvep Supabase configuration
 const LUVEP_SUPABASE_URL = process.env.LUVEP_SUPABASE_URL || 'https://qngeynazgejtxjszxtxt.supabase.co';

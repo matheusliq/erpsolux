@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getMateriais } from "@/app/actions/materiais";
 import MateriaisClient from "@/components/MateriaisClient";
 

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getClienteComObras } from "@/app/actions/clientes";
 import { notFound } from "next/navigation";
 import { ClienteHubClient } from "@/components/ClienteHubClient";

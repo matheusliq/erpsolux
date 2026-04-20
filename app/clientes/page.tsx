@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getClientes } from "@/app/actions/clientes";
 import Link from "next/link";
 import { Building2, TrendingUp, Briefcase, Phone, FileText } from "lucide-react";
