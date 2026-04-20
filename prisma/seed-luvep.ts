@@ -83,8 +83,6 @@ async function main() {
             executor: service.executor,
             fds: service.fds,
             mo_value: service.mo_value,
-            logistics_value: service.logistics_value,
-            logistics_sell_value: service.logistics_sell_value,
             mo_sell_value: service.mo_sell_value,
             updated_at: service.updated_at
           },
@@ -95,8 +93,6 @@ async function main() {
             executor: service.executor,
             fds: service.fds,
             mo_value: service.mo_value,
-            logistics_value: service.logistics_value,
-            logistics_sell_value: service.logistics_sell_value,
             mo_sell_value: service.mo_sell_value,
             created_at: service.created_at,
             updated_at: service.updated_at
