@@ -21,7 +21,7 @@ async function main() {
                 await prisma.categories.create({
                     data: {
                         name: catName,
-                        type: "Saída", // Defaulting to Saída (Operacional) as materials are costs by default
+                        type: "Sa_da", // Defaulting to Sa_da (Operacional) as materials are costs by default
                         color: "#64748b"
                     }
                 });

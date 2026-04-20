@@ -1315,7 +1315,7 @@ export function ObraDetailView({ project, categories }: {
                     {!focusedServiceId && (
                         <div className="grid gap-2">
                             {project.project_services.map((ps) => {
-                                const transCtx = project.transactions.filter(t => (t.type === "Sa_da" || t.type === "Saída") && (t as any).project_service_id === ps.id);
+                                const transCtx = project.transactions.filter(t => t.type === "Sa_da" && (t as any).project_service_id === ps.id);
                                 const operCusto = transCtx.reduce((a, t) => a + (t.cost_amount || t.amount), 0);
                                 const operVenda = transCtx.reduce((a, t) => a + t.amount, 0);
                                 const t = calcServiceTotals(ps, { custo: operCusto, venda: operVenda });
@@ -1353,7 +1353,7 @@ export function ObraDetailView({ project, categories }: {
 
                     {/* Focus Mode */}
                     {focusedServiceId && servicesToRender.map((ps) => {
-                        const transCtx = project.transactions.filter(t => (t.type === "Sa_da" || t.type === "Saída") && (t as any).project_service_id === ps.id);
+                        const transCtx = project.transactions.filter(t => t.type === "Sa_da" && (t as any).project_service_id === ps.id);
                         const operCustosDoServico = {
                             custo: transCtx.reduce((a, t) => a + (t.cost_amount || t.amount), 0),
                             venda: transCtx.reduce((a, t) => a + t.amount, 0)
@@ -1384,7 +1384,7 @@ export function ObraDetailView({ project, categories }: {
                                                 <Package size={12} /> Materiais ({ps.service.service_items.length})
                                             </TabsTrigger>
                                             <TabsTrigger value="operacional" className="gap-1.5 text-xs">
-                                                <Receipt size={12} /> Operacional ({project.transactions.filter(t => (t.type === "Sa_da" || t.type === "Saída") && (t as any).project_service_id === ps.id).length})
+                                                <Receipt size={12} /> Operacional ({project.transactions.filter(t => t.type === "Sa_da" && (t as any).project_service_id === ps.id).length})
                                             </TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="materiais">
