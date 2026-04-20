@@ -35,7 +35,8 @@ async function main() {
                 await prisma.projects.upsert({
                     where: { id: p.id },
                     update: { name: p.name },
-                    create: { id: p.id, name: p.name, start_date: p.start_date, status: p.status, client_id: p.customer_id, created_at: p.created_at }
+                    create: { id: p.id, name: p.name, start_date: p.start_date, status: p.status, entity_id: p.customer_id, created_at: p.created_at }
+
                 });
             } catch(e) {}
         }
@@ -49,7 +50,8 @@ async function main() {
         let count = 0;
         for (const f of flow) {
             try {
-                const typeMap = f.type === 'INCOME' ? 'entrada' : 'saida';
+                const typeMap: 'Entrada' | 'Sa_da' = f.type === 'INCOME' ? 'Entrada' : 'Sa_da';
+
                 const statusMap = f.status === 'PAID' ? 'Pago' : 'Agendado';
                 
                 await prisma.transactions.upsert({
