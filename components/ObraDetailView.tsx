@@ -431,7 +431,7 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
                                 const totalM = totalV - totalC;
                                 const isResale = si.material.is_resale;
                                 return (
-                                    <tr key={si.id} className="hover:bg-muted/20 transition-colors group">
+                                    <tr key={si.id} className="hover:bg-muted/20 odd:bg-muted/5 transition-colors group">
                                         <td className="p-3"><Checkbox checked={selected.has(si.id)} onCheckedChange={() => toggleSelect(si.id)} /></td>
                                         <td className="p-3"><span className="font-mono text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">{si.material.sku}</span></td>
                                         <td className="p-3 font-medium">{si.material.description}</td>
@@ -457,20 +457,20 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
                                                     startTransition(async () => { await updateMaterial(si.material.id, { markup_factor: mk }); onRefresh(); });
                                                 }} />
                                         </td>
-                                        <td className="p-3 text-right font-semibold font-mono">
-                                            {isResale ? <span className="text-emerald-400">{formatBRL(margemUnt)}</span> : <span className="text-muted-foreground text-[10px]">Absorvido</span>}
+                                        <td className="p-3 text-right font-mono tabular-nums">
+                                            {isResale ? <span className="text-emerald-400 font-semibold">{formatBRL(margemUnt)}</span> : <span className="text-muted-foreground text-[10px]">Absorvido</span>}
                                         </td>
                                         {/* Markup editável diretamente */}
-                                        <td className="p-3 text-right">
-                                            <EditableCell value={markupUnt} className="text-primary text-[10px]"
+                                        <td className="p-3 text-right tabular-nums">
+                                            <EditableCell value={markupUnt} className="text-primary text-[10px] font-mono"
                                                 onSave={(novoMk) => {
                                                     startTransition(async () => { await updateMaterial(si.material.id, { markup_factor: novoMk }); onRefresh(); });
                                                 }} />
                                             <span className="text-muted-foreground text-[9px] ml-0.5">x</span>
                                         </td>
-                                        <td className="p-3 text-right text-muted-foreground font-mono">{formatBRL(totalC)}</td>
-                                        <td className="p-3 text-right font-mono">{isResale ? formatBRL(totalV) : "—"}</td>
-                                        <td className="p-3 text-right font-bold font-mono">
+                                        <td className="p-3 text-right text-muted-foreground font-mono tabular-nums">{formatBRL(totalC)}</td>
+                                        <td className="p-3 text-right font-mono tabular-nums">{isResale ? formatBRL(totalV) : "—"}</td>
+                                        <td className="p-3 text-right font-bold font-mono tabular-nums">
                                             {isResale ? <span className="text-emerald-400">{formatBRL(totalM)}</span> : <span className="text-muted-foreground text-[10px]">—</span>}
                                         </td>
                                         <td className="p-3">
@@ -646,7 +646,7 @@ function ExpensesTab({
                             const lucro = t.amount - costReal;
 
                             return (
-                                <tr key={t.id} className="group hover:bg-muted/20 transition-colors">
+                                <tr key={t.id} className="group hover:bg-muted/20 odd:bg-muted/5 transition-colors">
                                     <td className="p-3"><Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} /></td>
                                     <td className="p-3">
                                         {isEdit ? <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} className="h-7 text-xs w-40" autoFocus /> : <span className="font-medium">{t.name}</span>}
@@ -659,15 +659,15 @@ function ExpensesTab({
                                     <td className="p-3 text-center">
                                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${t.status === "Pago" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : t.status === "Atrasado" ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-blue-400 bg-blue-500/10 border-blue-500/20"}`}>{t.status}</span>
                                     </td>
-                                    <td className="p-3 text-right">
+                                    <td className="p-3 text-right tabular-nums">
                                         {isEdit ? <Input value={draftCost} onChange={(e) => setDraftCost(e.target.value)} className="h-7 w-20 text-right font-mono text-xs" /> : <span className="font-bold font-mono text-rose-400">-{formatBRL(costReal)}</span>}
                                     </td>
-                                    <td className="p-3 text-right">
-                                        {isEdit ? <Input value={draftMarkup} onChange={(e) => setDraftMarkup(e.target.value)} className="h-7 w-16 text-right font-mono text-xs text-primary" /> : <span className="font-mono text-primary text-[10px]">{mkVal}x</span>}
+                                    <td className="p-3 text-right tabular-nums">
+                                        {isEdit ? <Input value={draftMarkup} onChange={(e) => setDraftMarkup(e.target.value)} className="h-7 w-16 text-right font-mono text-xs text-primary" /> : <span className="font-mono text-primary text-[10px]">{mkVal.toFixed(2)}x</span>}
                                     </td>
-                                    <td className="p-3 text-right">
+                                    <td className="p-3 text-right tabular-nums">
                                          <span className="font-bold font-mono text-emerald-400">{formatBRL(t.amount)}</span>
-                                         {lucro > 0 && <span className="block text-[9px] text-muted-foreground">(+{formatBRL(lucro)})</span>}
+                                         {lucro > 0 && <span className="block text-[9px] text-muted-foreground tabular-nums">(+{formatBRL(lucro)})</span>}
                                     </td>
                                     <td className="p-3">
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
