@@ -58,23 +58,25 @@ const formatBRL = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmt2 = (v: number) => v.toFixed(2).replace(".", ",");
 
-// ─── Money Input (máscara R$ direita-para-esquerda) ──────────────────────────
-function MoneyInput({
-    value, onChange, placeholder = "R$ 0,00", className = "", id
+function NumberMaskInput({
+    value, onChange, prefix = "", suffix = "", className, placeholder
 }: {
-    value: number; onChange: (v: number) => void;
-    placeholder?: string; className?: string; id?: string;
+    value: number;
+    onChange: (v: number) => void;
+    prefix?: string;
+    suffix?: string;
+    className?: string;
+    placeholder?: string;
 }) {
-    const [raw, setRaw] = useState(Math.round(value * 100).toString());
+    const [raw, setRaw] = useState(String(Math.round(value * 100)));
 
     useEffect(() => {
-        setRaw(Math.round(value * 100).toString());
+        const nextRaw = String(Math.round(value * 100));
+        if (nextRaw !== raw) setRaw(nextRaw);
     }, [value]);
 
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        // Permitir comandos de sistema (Cmd/Ctrl + C, V, A, X)
         if (e.metaKey || e.ctrlKey) return;
-
         if (/^\d$/.test(e.key)) {
             e.preventDefault();
             const next = (raw + e.key).replace(/^0+/, "") || "0";
@@ -99,11 +101,10 @@ function MoneyInput({
         }
     };
 
-    const display = `R$ ${(parseInt(raw || "0", 10) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const display = `${prefix}${(parseInt(raw || "0", 10) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
 
     return (
         <Input
-            id={id}
             value={display}
             readOnly={false}
             onKeyDown={handleKey}
@@ -113,6 +114,10 @@ function MoneyInput({
             className={`font-mono cursor-text ${className}`}
         />
     );
+}
+
+function MoneyInput({ value, onChange, className, placeholder }: { value: number; onChange: (v: number) => void; className?: string; placeholder?: string }) {
+    return <NumberMaskInput value={value} onChange={onChange} prefix="R$ " className={className} placeholder={placeholder} />;
 }
 
 // ─── Inline Editable Cell (números) ──────────────────────────────────────────
@@ -252,20 +257,12 @@ function MOPanel({ ps, operCustos, onRefresh }: {
                         <MoneyInput value={moVal} onChange={setMoVal} className="h-8 w-36 text-xs" />
                     ) : (
                         <div className="flex items-center gap-1">
-                            <Input
-                                value={String(moVal).replace(".", ",")}
-                                onChange={e => {
-                                    const raw = e.target.value.replace(",", ".");
-                                    const parsed = parseFloat(raw);
-                                    if (!isNaN(parsed)) setMoVal(parsed);
-                                    else if (raw === "" || raw === ".") setMoVal(0);
-                                }}
-                                onBlur={e => {
-                                    const v = parseFloat(e.target.value.replace(",", "."));
-                                    setMoVal(isNaN(v) ? 0 : v);
-                                }}
-                                className="h-8 w-20 text-right font-mono text-xs"
-                                placeholder="Ex: 1,5"
+                            <NumberMaskInput
+                                value={moVal}
+                                onChange={setMoVal}
+                                suffix="x"
+                                className="h-8 w-24 text-right font-mono text-xs"
+                                placeholder="1,00"
                             />
                             <span className="text-xs text-muted-foreground">× custos</span>
                         </div>
@@ -291,21 +288,19 @@ function SafetyMarginPanel({ ps, vendaBase, onRefresh }: {
     const [marginType, setMarginType] = useState<"percentage" | "fixed">(
         (ps.safety_margin_type as "percentage" | "fixed") ?? "percentage"
     );
-    const [marginVal, setMarginVal] = useState(String(ps.safety_margin_value ?? 0));
+    const [marginVal, setMarginVal] = useState(ps.safety_margin_value ?? 0);
     const [, startTransition] = useTransition();
 
     const saveSafetyMargin = () => {
-        const val = parseFloat(marginVal.replace(",", "."));
-        if (isNaN(val)) return;
         startTransition(async () => {
-            await updateSafetyMargin(ps.id, marginType, val);
+            await updateSafetyMargin(ps.id, marginType, marginVal);
             onRefresh();
         });
     };
 
     const previewSafety = marginType === "percentage"
-        ? vendaBase * (parseFloat(marginVal || "0") / 100)
-        : parseFloat(marginVal || "0");
+        ? vendaBase * (marginVal / 100)
+        : marginVal;
 
     return (
         <div className="bg-card border border-border rounded-xl p-4 flex flex-wrap gap-3 items-center">
@@ -317,16 +312,18 @@ function SafetyMarginPanel({ ps, vendaBase, onRefresh }: {
                 <button onClick={() => setMarginType("fixed")}
                     className={`text-xs px-3 py-1 rounded-md font-semibold transition-all ${marginType === "fixed" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>R$</button>
             </div>
-            <Input value={marginVal} onChange={(e) => setMarginVal(e.target.value)}
-                placeholder={marginType === "percentage" ? "Ex: 10" : "Ex: 200"}
-                className="h-8 w-24 text-right font-mono text-xs" />
+            {marginType === "percentage" ? (
+                <NumberMaskInput value={marginVal} onChange={setMarginVal} suffix="%" className="h-8 w-24 text-right font-mono text-xs" />
+            ) : (
+                <MoneyInput value={marginVal} onChange={setMarginVal} className="h-8 w-32 text-xs" />
+            )}
             <Button onClick={saveSafetyMargin} size="sm" variant="outline" className="h-8 text-xs gap-1">
                 <Check size={11} /> Aplicar
             </Button>
             <span className="text-xs text-muted-foreground ml-auto">
                 {marginType === "percentage"
-                    ? `+${marginVal || 0}% s/ total base = ${formatBRL(previewSafety)}`
-                    : `+${formatBRL(parseFloat(marginVal || "0"))} fixo`}
+                    ? `+${(marginVal || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% s/ total base = ${formatBRL(previewSafety)}`
+                    : `+${formatBRL(marginVal || 0)} fixo`}
             </span>
             <span className="text-[10px] text-muted-foreground w-full">
                 Base = Mat + Log + MO = {formatBRL(vendaBase)} → c/ margem: {formatBRL(vendaBase + previewSafety)}
