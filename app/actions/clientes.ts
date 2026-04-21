@@ -17,7 +17,6 @@ export async function getClientes() {
                     { type: { equals: "cliente", mode: "insensitive" } },
                     { type: null }, // Entidades sem tipo ainda aparecem
                 ],
-                projects: { some: {} }, // Apenas entidades que têm obras
             },
             include: {
                 projects: {

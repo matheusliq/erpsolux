@@ -18,7 +18,14 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
  *
  * @prisma/adapter-pg é obrigatório no Prisma v7 (substitui o engine Rust nativo).
  */
-const connectionString = process.env.DATABASE_URL as string;
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+    throw new Error(
+        "CRITICAL ERROR: DATABASE_URL environment variable is not defined.\n" +
+        "Please ensure it is set in your .env file (local) or Vercel Dashboard (production).\n" +
+        "The application cannot connect to the database without this variable."
+    );
+}
 
 const pool = new Pool({
     connectionString,
