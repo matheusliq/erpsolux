@@ -72,6 +72,9 @@ function MoneyInput({
     }, [value]);
 
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Permitir comandos de sistema (Cmd/Ctrl + C, V, A, X)
+        if (e.metaKey || e.ctrlKey) return;
+
         if (/^\d$/.test(e.key)) {
             e.preventDefault();
             const next = (raw + e.key).replace(/^0+/, "") || "0";
@@ -85,6 +88,17 @@ function MoneyInput({
         }
     };
 
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData("text");
+        const digits = text.replace(/\D/g, "");
+        if (digits) {
+            const next = (raw + digits).replace(/^0+/, "") || "0";
+            setRaw(next);
+            onChange(parseInt(next, 10) / 100);
+        }
+    };
+
     const display = `R$ ${(parseInt(raw || "0", 10) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     return (
@@ -93,7 +107,8 @@ function MoneyInput({
             value={display}
             readOnly={false}
             onKeyDown={handleKey}
-            onChange={() => {}}
+            onPaste={handlePaste}
+            onChange={() => { }}
             placeholder={placeholder}
             className={`font-mono cursor-text ${className}`}
         />
@@ -328,15 +343,41 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
     const [bulkMode, setBulkMode] = useState<"pct" | "fixed">("pct");
     const [bulkVal, setBulkVal] = useState("");
     const [search, setSearch] = useState("");
+    const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "description", dir: "asc" });
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [, startTransition] = useTransition();
     const { service: s } = projectService;
 
     const totals = calcServiceTotals(projectService, operCustos);
 
-    const items = s.service_items.filter((si) =>
-        si.material.description.toLowerCase().includes(search.toLowerCase()) ||
-        si.material.sku.toLowerCase().includes(search.toLowerCase())
+    const items = s.service_items
+        .filter((si) =>
+            si.material.description.toLowerCase().includes(search.toLowerCase()) ||
+            si.material.sku.toLowerCase().includes(search.toLowerCase())
+        )
+        .sort((a, b) => {
+            let valA: any, valB: any;
+            switch (sort.key) {
+                case "sku": valA = a.material.sku; valB = b.material.sku; break;
+                case "description": valA = a.material.description; valB = b.material.description; break;
+                case "category": valA = a.material.category?.name || ""; valB = b.material.category?.name || ""; break;
+                case "qtd": valA = a.quantity; valB = b.quantity; break;
+                case "custo": valA = a.material.cost_price; valB = b.material.cost_price; break;
+                case "venda": valA = a.material.cost_price * a.material.markup_factor; valB = b.material.cost_price * b.material.markup_factor; break;
+                case "total_c": valA = a.quantity * a.material.cost_price; valB = b.quantity * b.material.cost_price; break;
+                case "total_v": valA = a.quantity * a.material.cost_price * a.material.markup_factor; valB = b.quantity * b.material.cost_price * b.material.markup_factor; break;
+                default: valA = a.material.description; valB = b.material.description;
+            }
+            const res = typeof valA === "string" ? valA.localeCompare(valB) : (valA as number) - (valB as number);
+            return sort.dir === "asc" ? res : -res;
+        });
+
+    const toggleSort = (k: string) => setSort(prev => ({ key: k, dir: prev.key === k && prev.dir === "asc" ? "desc" : "asc" }));
+    const SortBtn = ({ k, label }: { k: string; label: string }) => (
+        <button onClick={() => toggleSort(k)} className="flex items-center gap-1 hover:text-primary transition-colors">
+            {label}
+            {sort.key === k && (sort.dir === "asc" ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+        </button>
     );
 
     const toggleSelect = (id: string) => {
@@ -407,16 +448,16 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
                         <thead className="bg-muted/50 border-b border-border">
                             <tr>
                                 <th className="p-3 w-8"><Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} /></th>
-                                <th className="p-3 text-left font-semibold text-muted-foreground">SKU</th>
-                                <th className="p-3 text-left font-semibold text-muted-foreground">Descrição</th>
-                                <th className="p-3 text-center font-semibold text-muted-foreground">Categoria</th>
-                                <th className="p-3 text-center font-semibold text-muted-foreground">Qtd ✏️</th>
-                                <th className="p-3 text-right font-semibold text-muted-foreground">Custo Unt.</th>
-                                <th className="p-3 text-right font-semibold text-muted-foreground">Venda Unt.</th>
+                                <th className="p-3 text-left font-semibold text-muted-foreground"><SortBtn k="sku" label="SKU" /></th>
+                                <th className="p-3 text-left font-semibold text-muted-foreground"><SortBtn k="description" label="Descrição" /></th>
+                                <th className="p-3 text-center font-semibold text-muted-foreground"><SortBtn k="category" label="Categoria" /></th>
+                                <th className="p-3 text-center font-semibold text-muted-foreground"><SortBtn k="qtd" label="Qtd ✏️" /></th>
+                                <th className="p-3 text-right font-semibold text-muted-foreground"><SortBtn k="custo" label="Custo Unt." /></th>
+                                <th className="p-3 text-right font-semibold text-muted-foreground"><SortBtn k="venda" label="Venda Unt." /></th>
                                 <th className="p-3 text-right font-semibold text-emerald-400">Margem Unt.</th>
                                 <th className="p-3 text-right font-semibold text-primary">Markup</th>
-                                <th className="p-3 text-right font-semibold text-muted-foreground">Tot. Custo</th>
-                                <th className="p-3 text-right font-semibold text-muted-foreground">Tot. Venda</th>
+                                <th className="p-3 text-right font-semibold text-muted-foreground"><SortBtn k="total_c" label="Tot. Custo" /></th>
+                                <th className="p-3 text-right font-semibold text-muted-foreground"><SortBtn k="total_v" label="Tot. Venda" /></th>
                                 <th className="p-3 text-right font-semibold text-emerald-400">Tot. Margem</th>
                                 <th className="p-3 w-8"></th>
                             </tr>
@@ -533,12 +574,34 @@ function ExpensesTab({
     const [draftMarkup, setDraftMarkup] = useState("");
     const [draftName, setDraftName] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
     const [, startTransition] = useTransition();
 
     // Filtro ESTRITO: apenas custos deste serviço específico
-    const custos = transactions.filter(t => 
-        (t.type === "Sa_da" || t.type === "Saída") && 
-        (t as any).project_service_id === projectServiceId
+    const custos = transactions
+        .filter(t =>
+            (t.type === "Sa_da" || t.type === "Saída") &&
+            (t as any).project_service_id === projectServiceId
+        )
+        .sort((a, b) => {
+            let valA: any, valB: any;
+            switch (sort.key) {
+                case "name": valA = a.name; valB = b.name; break;
+                case "status": valA = a.status; valB = b.status; break;
+                case "custo": valA = a.cost_amount || a.amount; valB = b.cost_amount || b.amount; break;
+                case "venda": valA = a.amount; valB = b.amount; break;
+                default: valA = a.name; valB = b.name;
+            }
+            const res = typeof valA === "string" ? valA.localeCompare(valB) : (valA as number) - (valB as number);
+            return sort.dir === "asc" ? res : -res;
+        });
+
+    const toggleSort = (k: string) => setSort(prev => ({ key: k, dir: prev.key === k && prev.dir === "asc" ? "desc" : "asc" }));
+    const SortBtn = ({ k, label }: { k: string; label: string }) => (
+        <button onClick={() => toggleSort(k)} className="flex items-center gap-1 hover:text-primary transition-colors">
+            {label}
+            {sort.key === k && (sort.dir === "asc" ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+        </button>
     );
     const totalCusto = custos.reduce((a, t) => a + (t.cost_amount || t.amount), 0);
     const totalVendaMO = custos.reduce((a, t) => a + t.amount, 0);
@@ -624,12 +687,12 @@ function ExpensesTab({
                     <thead className="bg-muted/50 border-b border-border">
                         <tr>
                             <th className="p-3 w-8"><Checkbox checked={selected.size === custos.length && custos.length > 0} onCheckedChange={toggleAll} /></th>
-                            <th className="p-3 text-left font-semibold text-muted-foreground">Descrição</th>
+                            <th className="p-3 text-left font-semibold text-muted-foreground"><SortBtn k="name" label="Descrição" /></th>
                             <th className="p-3 text-center font-semibold text-muted-foreground">Categoria</th>
-                            <th className="p-3 text-center font-semibold text-muted-foreground">Status</th>
-                            <th className="p-3 text-right font-semibold text-rose-400">Custo</th>
+                            <th className="p-3 text-center font-semibold text-muted-foreground"><SortBtn k="status" label="Status" /></th>
+                            <th className="p-3 text-right font-semibold text-rose-400"><SortBtn k="custo" label="Custo" /></th>
                             <th className="p-3 text-right font-semibold text-primary">Markup</th>
-                            <th className="p-3 text-right font-semibold text-emerald-400">Venda</th>
+                            <th className="p-3 text-right font-semibold text-emerald-400"><SortBtn k="venda" label="Venda" /></th>
                             <th className="p-3 w-16"></th>
                         </tr>
                     </thead>
