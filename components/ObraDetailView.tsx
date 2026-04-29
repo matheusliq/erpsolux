@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
     Trash2, Pencil, Check, X, ShieldCheck,
     Package, Receipt, TrendingUp, DollarSign, Percent, Plus,
-    ArrowLeft, ShoppingCart, Wrench, Search, Loader2, Zap, ChevronDown
+    ArrowLeft, ShoppingCart, Wrench, Search, Loader2, Zap, ChevronDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
@@ -357,7 +357,7 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
             switch (sort.key) {
                 case "sku": valA = a.material.sku; valB = b.material.sku; break;
                 case "description": valA = a.material.description; valB = b.material.description; break;
-                case "category": valA = a.material.category?.name || ""; valB = b.material.category?.name || ""; break;
+                case "category": valA = a.material.category || ""; valB = b.material.category || ""; break;
                 case "qtd": valA = a.quantity; valB = b.quantity; break;
                 case "custo": valA = a.material.cost_price; valB = b.material.cost_price; break;
                 case "venda": valA = a.material.cost_price * a.material.markup_factor; valB = b.material.cost_price * b.material.markup_factor; break;
