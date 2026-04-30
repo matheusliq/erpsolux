@@ -130,3 +130,50 @@ export async function deleteProject(id: string) {
         return { success: false, error: "Falha ao excluir projeto." };
     }
 }
+
+export async function duplicateProject(id: string) {
+    try {
+        // Busca a obra original com seus serviços atrelados
+        const originalProject = await prisma.projects.findUnique({
+            where: { id },
+            include: {
+                project_services: true,
+            }
+        });
+
+        if (!originalProject) {
+            return { success: false, error: "Obra original não encontrada." };
+        }
+
+        // Cria a nova obra baseada na original (sem transações)
+        const newProject = await prisma.projects.create({
+            data: {
+                name: `${originalProject.name} (Cópia)`,
+                description: originalProject.description,
+                client_name: originalProject.client_name,
+                entity_id: originalProject.entity_id,
+                status: "negotiation",
+                contract_value: originalProject.contract_value,
+                budget_solux_reserve: originalProject.budget_solux_reserve,
+                partners_split: originalProject.partners_split ?? undefined,
+                project_services: {
+                    create: originalProject.project_services.map(ps => ({
+                        service_id: ps.service_id,
+                        quantity: ps.quantity,
+                        safety_margin_type: ps.safety_margin_type,
+                        safety_margin_value: ps.safety_margin_value,
+                        mo_type: ps.mo_type,
+                        mo_custom_value: ps.mo_custom_value,
+                    }))
+                }
+            }
+        });
+
+        revalidatePath(`/clientes/${originalProject.entity_id}`);
+        return { success: true, data: { id: newProject.id } };
+
+    } catch (error) {
+        console.error("duplicateProject error:", error);
+        return { success: false, error: "Falha ao duplicar a obra." };
+    }
+}

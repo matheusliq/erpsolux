@@ -17,8 +17,9 @@ model categories {
   name           String
   type           transaction_type
   color          String?          @default("#cbd5e1")
-  monthly_budget Decimal?         @db.Decimal(15, 2)
-  created_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  monthly_budget       Decimal?         @db.Decimal(15, 2)
+  is_material_category Boolean?         @default(false)
+  created_at           DateTime?        @default(now()) @db.Timestamptz(6)
   transactions   transactions[]
 }
 
@@ -33,6 +34,7 @@ model entities {
   created_at   DateTime?      @default(now()) @db.Timestamptz(6)
   transactions transactions[]
   projects     projects[]
+  materials    materials[]
 }
 
 model payment_methods {
@@ -95,8 +97,10 @@ model transactions {
   entity_id            String?             @db.Uuid
   payment_method_id    String?             @db.Uuid
   is_resale            Boolean?            @default(false) // Distingue revenda de custo operacional
-  cost_amount         Decimal?            @default(0.00) @db.Decimal(15, 2)
-  markup              Decimal?            @default(1.00) @db.Decimal(10, 2)
+  quantity             Decimal?            @default(1.00) @db.Decimal(10, 2)
+  unit_price           Decimal?            @default(0.00) @db.Decimal(15, 2)
+  cost_amount          Decimal?            @default(0.00) @db.Decimal(15, 2)
+  markup               Decimal?            @default(1.00) @db.Decimal(10, 2)
   receipt_url          String?
   notes                String?
   created_by           String?             @db.Uuid
@@ -152,9 +156,11 @@ model materials {
   cost_price     Decimal          @default(0.00) @db.Decimal(10, 2)
   markup_factor  Decimal          @default(1.40) @db.Decimal(4, 2)
   is_resale      Boolean          @default(true)
+  entity_id      String?          @db.Uuid
   created_at     DateTime?        @default(now()) @db.Timestamptz(6)
   updated_at     DateTime?        @default(now()) @db.Timestamptz(6)
   
+  entity         entities?        @relation(fields: [entity_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   service_items  service_items[]
   transactions   transactions[]
 }

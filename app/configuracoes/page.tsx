@@ -188,6 +188,7 @@ export default function ConfiguracoesPage() {
     const [catName, setCatName] = useState("");
     const [catColor, setCatColor] = useState("#ef4444");
     const [catType, setCatType] = useState("saida");
+    const [catIsMaterial, setCatIsMaterial] = useState(false);
 
     // ── Entity form ───────────────────────────────────────────────────────────
     const [entName, setEntName] = useState("");
@@ -212,7 +213,7 @@ export default function ConfiguracoesPage() {
     const carregarDados = useCallback(async () => {
         setIsLoading(true);
         const [cats, ents, projs] = await Promise.all([
-            getCategories(), getEntities(), getProjects()
+            getCategories({ showAllCaps: true }), getEntities(), getProjects()
         ]);
         if (cats.success) setListaCategorias(cats.data || []);
         if (ents.success) setListaEntidades(ents.data || []);
@@ -245,6 +246,7 @@ export default function ConfiguracoesPage() {
             setCatName(item?.name || "");
             setCatColor(item?.color || "#ef4444");
             setCatType(item ? (item.type === "Entrada" ? "entrada" : "saida") : "saida");
+            setCatIsMaterial(item?.is_material || false);
         } else if (activeTab === "entidades") {
             setEntName(item?.name || "");
             setEntType((item?.type || "client").toLowerCase());
@@ -281,8 +283,8 @@ export default function ConfiguracoesPage() {
 
         if (activeTab === "categorias") {
             response = editingItem?.id
-                ? await updateCategory(editingItem.id, { name: catName, color: catColor, type: catType })
-                : await createCategory({ name: catName, color: catColor, type: catType });
+                ? await updateCategory(editingItem.id, { name: catName, color: catColor, type: catType, is_material_category: catIsMaterial })
+                : await createCategory({ name: catName, color: catColor, type: catType, is_material_category: catIsMaterial });
         } else if (activeTab === "entidades") {
             const payload = {
                 name: entName,
@@ -486,6 +488,21 @@ export default function ConfiguracoesPage() {
                         </Select>
                     </div>
                 </div>
+                
+                <div className="flex items-center gap-2 p-4 bg-card border border-zinc-800 rounded-lg">
+                    <input 
+                        type="checkbox" 
+                        id="catIsMaterial" 
+                        checked={catIsMaterial} 
+                        onChange={(e) => setCatIsMaterial(e.target.checked)}
+                        className="w-4 h-4 rounded border-zinc-700 bg-background text-blue-500 focus:ring-blue-500 focus:ring-offset-background"
+                    />
+                    <div className="flex-1">
+                        <Label htmlFor="catIsMaterial" className="text-sm font-bold text-zinc-200 cursor-pointer">É categoria de Revenda/Material?</Label>
+                        <p className="text-[10px] text-zinc-500">Se marcado, esta categoria aparecerá na aba de Materiais e será ocultada do Kanban principal.</p>
+                    </div>
+                </div>
+
                 <div className="flex items-center gap-3 p-3 bg-card border border-zinc-800 rounded-lg">
                     <div className="w-8 h-8 rounded-md shrink-0" style={{ backgroundColor: catColor }} />
                     <div>
@@ -647,30 +664,69 @@ export default function ConfiguracoesPage() {
                 </TabsContent>
 
                 {/* ── Categorias ── */}
-                <TabsContent value="categorias" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <TabsContent value="categorias" className="space-y-8">
                     {isLoading ? (
-                        <div className="col-span-3 flex justify-center py-10 text-zinc-500"><Loader2 className="animate-spin mr-2" /> Carregando...</div>
+                        <div className="flex justify-center py-10 text-zinc-500"><Loader2 className="animate-spin mr-2" /> Carregando...</div>
                     ) : listaCategorias.length === 0 ? (
-                        <div className="col-span-3 text-center py-10 text-zinc-500">Nenhuma categoria encontrada.</div>
+                        <div className="text-center py-10 text-zinc-500">Nenhuma categoria encontrada.</div>
                     ) : (
-                        listaCategorias.map(cat => (
-                            <div key={cat.id} onClick={() => handleOpenModal(cat)} style={{ borderLeftColor: cat.color || "#ef4444" }} className="bg-card/20 border-l-4 border-y border-r border-zinc-800 p-4 rounded-r-xl flex justify-between items-center group hover:bg-card/40 cursor-pointer transition-all">
-                                <div>
-                                    <h3 className="font-bold text-foreground text-sm">{cat.name}</h3>
-                                    <p className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest mt-1">
-                                        {cat.type === "Entrada" ? "Receita / Entrada" : "Despesa / Saída"}
-                                    </p>
-                                </div>
-                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                                    <button onClick={(e) => { e.stopPropagation(); handleOpenModal(cat); }} className="w-8 h-8 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-foreground transition-colors">
-                                        <Pencil size={14} />
-                                    </button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDelete("categorias", cat.id); }} className="w-8 h-8 rounded bg-zinc-800 hover:bg-rose-900/60 flex items-center justify-center text-zinc-400 hover:text-rose-400 transition-colors">
-                                        <Trash2 size={14} />
-                                    </button>
+                        <>
+                            {/* Operacionais */}
+                            <div>
+                                <h2 className="text-lg font-bold tracking-tight mb-4 flex items-center gap-2">
+                                    <Tag size={16} className="text-blue-500" /> Categorias Operacionais
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {listaCategorias.filter(c => !c.is_material).map(cat => (
+                                        <div key={cat.id} onClick={() => handleOpenModal(cat)} style={{ borderLeftColor: cat.color || "#ef4444" }} className="bg-card/20 border-l-4 border-y border-r border-zinc-800 p-4 rounded-r-xl flex justify-between items-center group hover:bg-card/40 cursor-pointer transition-all">
+                                            <div>
+                                                <h3 className="font-bold text-foreground text-sm">{cat.name}</h3>
+                                                <p className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest mt-1">
+                                                    {cat.type === "Entrada" ? "Receita / Entrada" : "Despesa / Saída"}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenModal(cat); }} className="w-8 h-8 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-foreground transition-colors">
+                                                    <Pencil size={14} />
+                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDelete("categorias", cat.id); }} className="w-8 h-8 rounded bg-zinc-800 hover:bg-rose-900/60 flex items-center justify-center text-zinc-400 hover:text-rose-400 transition-colors">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        ))
+
+                            {/* Materiais */}
+                            {listaCategorias.filter(c => c.is_material).length > 0 && (
+                                <div>
+                                    <h2 className="text-lg font-bold tracking-tight mb-4 flex items-center gap-2 pt-4 border-t border-zinc-800/50">
+                                        <HardHat size={16} className="text-amber-500" /> Categorias de Revenda / Material
+                                    </h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {listaCategorias.filter(c => c.is_material).map(cat => (
+                                            <div key={cat.id} onClick={() => handleOpenModal(cat)} style={{ borderLeftColor: cat.color || "#ef4444" }} className="bg-card/20 border-l-4 border-y border-r border-zinc-800 p-4 rounded-r-xl flex justify-between items-center group hover:bg-card/40 cursor-pointer transition-all">
+                                                <div>
+                                                    <h3 className="font-bold text-foreground text-sm">{cat.name}</h3>
+                                                    <p className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest mt-1">
+                                                        {cat.type === "Entrada" ? "Receita / Entrada" : "Despesa / Saída"}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleOpenModal(cat); }} className="w-8 h-8 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-foreground transition-colors">
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDelete("categorias", cat.id); }} className="w-8 h-8 rounded bg-zinc-800 hover:bg-rose-900/60 flex items-center justify-center text-zinc-400 hover:text-rose-400 transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </TabsContent>
 

@@ -21,7 +21,8 @@ import {
     updateService, updateServiceItemQty, updateProjectServiceMO,
     removeServiceFromProject, addServiceToProject, searchServices, deleteServiceItem, addMaterialToService, createAndLinkServiceToProject
 } from "@/app/actions/services";
-import { updateProject } from "@/app/actions/projetos";
+import { updateProject, duplicateProject } from "@/app/actions/projetos";
+import { Copy } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Material = {
@@ -42,7 +43,9 @@ type ProjectService = {
 type Transaction = {
     id: string; name: string; amount: number; type: string;
     cost_amount?: number; markup?: number;
+    quantity?: number; unit_price?: number;
     status: string; due_date: string;
+    category_id: string | null;
     categories: { name: string; color: string } | null;
 };
 type Category = { id: string; name: string; color: string; type?: string; is_material?: boolean };
@@ -557,12 +560,13 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
 
 // ─── Expenses Tab ─────────────────────────────────────────────────────────────
 function ExpensesTab({
-    transactions, projectServiceId, projectService, operCustos, onRefresh
+    transactions, projectServiceId, projectService, operCustos, categories, onRefresh
 }: { 
     transactions: Transaction[]; 
     projectServiceId: string; 
     projectService: ProjectService;
     operCustos: { custo: number; venda: number };
+    categories: Category[];
     onRefresh: () => void; 
 }) {
     const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -570,6 +574,9 @@ function ExpensesTab({
     const [draftCost, setDraftCost] = useState("");
     const [draftMarkup, setDraftMarkup] = useState("");
     const [draftName, setDraftName] = useState("");
+    const [draftQtd, setDraftQtd] = useState("");
+    const [draftUnit, setDraftUnit] = useState("");
+    const [draftCat, setDraftCat] = useState("");
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
     const [, startTransition] = useTransition();
@@ -626,30 +633,42 @@ function ExpensesTab({
     };
 
     const commitEdit = (t: Transaction) => {
-        const cost = parseFloat(draftCost.replace(",", "."));
+        const qty = parseFloat(draftQtd.replace(",", "."));
+        const unitPrice = parseFloat(draftUnit.replace(",", "."));
         const markup = parseFloat(draftMarkup.replace(",", "."));
         
         const updates: any = {};
-        let newAmount = t.amount;
-
-        if (!isNaN(cost)) updates.cost_amount = cost;
-        if (!isNaN(markup)) updates.markup = markup;
-
-        // Se pelo menos um dos valores numéricos mudou:
-        if (!isNaN(cost) || !isNaN(markup)) {
-            const finalCost = !isNaN(cost) ? cost : (t.cost_amount || t.amount);
-            const finalMarkup = !isNaN(markup) ? markup : (t.markup || 1);
-            newAmount = finalCost * finalMarkup;
-            updates.amount = newAmount;
-        }
-
-        if (draftName.trim() && draftName.trim() !== t.name) updates.name = draftName.trim();
-        if (Object.keys(updates).length === 0) { setEditing(null); return; }
         
-        startTransition(async () => {
-            await updateTransaction(t.id, updates);
-            setEditing(null); onRefresh();
-        });
+        let newQty = t.quantity;
+        let newUnitPrice = t.unit_price;
+        let newCost = t.cost_amount;
+        let newMarkup = t.markup;
+        let recalculateCost = false;
+
+        if (!isNaN(qty) && qty !== t.quantity) { updates.quantity = qty; newQty = qty; recalculateCost = true; }
+        if (!isNaN(unitPrice) && unitPrice !== t.unit_price) { updates.unit_price = unitPrice; newUnitPrice = unitPrice; recalculateCost = true; }
+        if (!isNaN(markup) && markup !== t.markup) { updates.markup = markup; newMarkup = markup; recalculateCost = true; }
+        if (draftCat !== t.category_id) { updates.category_id = draftCat || null; }
+        if (draftName.trim() && draftName.trim() !== t.name) { updates.name = draftName.trim(); }
+
+        if (recalculateCost || updates.name || updates.category_id !== undefined) {
+            const finalQty = newQty || 1;
+            const finalUnit = newUnitPrice || t.cost_amount || t.amount || 0;
+            const finalCost = finalQty * finalUnit;
+            const finalMarkupValue = newMarkup || 1;
+            
+            if (recalculateCost) {
+                updates.cost_amount = finalCost;
+                updates.amount = finalCost * finalMarkupValue;
+            }
+
+            startTransition(async () => {
+                await updateTransaction(t.id, updates);
+                setEditing(null); onRefresh();
+            });
+        } else {
+            setEditing(null);
+        }
     };
 
     return (
@@ -687,7 +706,9 @@ function ExpensesTab({
                             <th className="p-3 text-left font-semibold text-muted-foreground"><SortBtn k="name" label="Descrição" /></th>
                             <th className="p-3 text-center font-semibold text-muted-foreground">Categoria</th>
                             <th className="p-3 text-center font-semibold text-muted-foreground"><SortBtn k="status" label="Status" /></th>
-                            <th className="p-3 text-right font-semibold text-rose-400"><SortBtn k="custo" label="Custo" /></th>
+                            <th className="p-3 text-right font-semibold text-muted-foreground">Qtd</th>
+                            <th className="p-3 text-right font-semibold text-muted-foreground">Val. Unit.</th>
+                            <th className="p-3 text-right font-semibold text-rose-400"><SortBtn k="custo" label="Custo Tot." /></th>
                             <th className="p-3 text-right font-semibold text-primary">Markup</th>
                             <th className="p-3 text-right font-semibold text-emerald-400"><SortBtn k="venda" label="Venda" /></th>
                             <th className="p-3 w-16"></th>
@@ -712,15 +733,31 @@ function ExpensesTab({
                                         {isEdit ? <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} className="h-7 text-xs w-40" autoFocus /> : <span className="font-medium">{t.name}</span>}
                                     </td>
                                     <td className="p-3 text-center">
-                                        {t.categories
-                                            ? <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: `${t.categories.color}20`, color: t.categories.color }}>{t.categories.name}</span>
-                                            : <span className="text-muted-foreground">—</span>}
+                                        {isEdit ? (
+                                            <select value={draftCat} onChange={e => setDraftCat(e.target.value)}
+                                                className="w-24 bg-transparent border-b border-border text-xs focus:outline-none">
+                                                <option value="">Sem categoria</option>
+                                                {categories.filter(c => c.type === "Sa_da" || c.type === "Saída").map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                        ) : t.categories ? (
+                                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold truncate max-w-[100px] inline-block" style={{ backgroundColor: `${t.categories.color}20`, color: t.categories.color }}>{t.categories.name}</span>
+                                        ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                        )}
                                     </td>
                                     <td className="p-3 text-center">
                                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${t.status === "Pago" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : t.status === "Atrasado" ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-blue-400 bg-blue-500/10 border-blue-500/20"}`}>{t.status}</span>
                                     </td>
                                     <td className="p-3 text-right tabular-nums">
-                                        {isEdit ? <Input value={draftCost} onChange={(e) => setDraftCost(e.target.value)} className="h-7 w-20 text-right font-mono text-xs" /> : <span className="font-bold font-mono text-rose-400">-{formatBRL(costReal)}</span>}
+                                        {isEdit ? <Input value={draftQtd} onChange={(e) => setDraftQtd(e.target.value)} className="h-7 w-12 text-right font-mono text-xs" /> : <span className="font-mono text-muted-foreground">{t.quantity || 1}</span>}
+                                    </td>
+                                    <td className="p-3 text-right tabular-nums">
+                                        {isEdit ? <Input value={draftUnit} onChange={(e) => setDraftUnit(e.target.value)} className="h-7 w-20 text-right font-mono text-xs" /> : <span className="font-mono text-muted-foreground">{formatBRL(t.unit_price || costReal)}</span>}
+                                    </td>
+                                    <td className="p-3 text-right tabular-nums">
+                                        <span className="font-bold font-mono text-rose-400">-{formatBRL(costReal)}</span>
                                     </td>
                                     <td className="p-3 text-right tabular-nums">
                                         {isEdit ? <Input value={draftMarkup} onChange={(e) => setDraftMarkup(e.target.value)} className="h-7 w-16 text-right font-mono text-xs text-primary" /> : <span className="font-mono text-primary text-[10px]">{mkVal.toFixed(2)}x</span>}
@@ -738,7 +775,14 @@ function ExpensesTab({
                                                 </>
                                             ) : (
                                                 <>
-                                                    <button onClick={() => { setEditing(t.id); setDraftCost(String(costReal)); setDraftMarkup(String(mkVal)); setDraftName(t.name); }} className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10"><Pencil size={11} /></button>
+                                                    <button onClick={() => { 
+                                                        setEditing(t.id); 
+                                                        setDraftQtd(String(t.quantity || 1)); 
+                                                        setDraftUnit(String(t.unit_price || costReal)); 
+                                                        setDraftMarkup(String(mkVal)); 
+                                                        setDraftName(t.name);
+                                                        setDraftCat(t.category_id || "");
+                                                    }} className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10"><Pencil size={11} /></button>
                                                     <button onClick={() => setDeleteId(t.id)} className="p-1 rounded text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"><Trash2 size={11} /></button>
                                                 </>
                                             )}
@@ -1163,50 +1207,55 @@ function NewTransactionModal({
 function ProjectHeaderEditor({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
     const [editing, setEditing] = useState(false);
     const [draftName, setDraftName] = useState(project.name);
-    const [draftStatus, setDraftStatus] = useState(project.status || "Ativa");
     const [, startTransition] = useTransition();
 
-    const commit = () => {
-        if ((draftName.trim() && draftName !== project.name) || draftStatus !== project.status) {
+    const commitName = () => {
+        if (draftName.trim() && draftName !== project.name) {
             startTransition(async () => { 
-                await updateProject(project.id, { name: draftName.trim(), status: draftStatus }); 
+                await updateProject(project.id, { name: draftName.trim() }); 
                 onRefresh(); 
             });
         }
         setEditing(false);
     };
 
-    if (editing) return (
+    const handleStatusChange = (newStatus: string) => {
+        startTransition(async () => { 
+            await updateProject(project.id, { status: newStatus }); 
+            onRefresh(); 
+        });
+    };
+
+    return (
         <div className="flex items-center gap-3 mb-1">
-            <Input value={draftName} onChange={e => setDraftName(e.target.value)}
-                onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-                className="h-9 text-xl font-bold w-80 shadow-inner" autoFocus />
-            
-            <select value={draftStatus} onChange={e => setDraftStatus(e.target.value)} onBlur={commit}
-                className="h-9 text-xs font-bold bg-muted border border-border rounded-md px-3 focus:outline-none uppercase">
-                <option value="Negociação">Negociação</option>
+            {editing ? (
+                <div className="flex items-center gap-2">
+                    <Input value={draftName} onChange={e => setDraftName(e.target.value)}
+                        onBlur={commitName} onKeyDown={e => { if (e.key === "Enter") commitName(); if (e.key === "Escape") setEditing(false); }}
+                        className="h-9 text-xl font-bold w-80 shadow-inner" autoFocus />
+                    <button onClick={commitName} className="p-1.5 rounded-md hover:bg-emerald-500/20 text-emerald-500 transition-colors"><Check size={16} /></button>
+                    <button onClick={() => setEditing(false)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"><X size={16} /></button>
+                </div>
+            ) : (
+                <button onClick={() => { setEditing(true); setDraftName(project.name); }}
+                    className="group flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
+                    <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+                    <Pencil size={14} className="opacity-0 group-hover:opacity-70 transition-opacity text-muted-foreground" />
+                </button>
+            )}
+
+            <select 
+                value={project.status || "Ativa"} 
+                onChange={e => handleStatusChange(e.target.value)}
+                className="h-7 text-[10px] font-bold bg-muted border border-border rounded-md px-2 focus:outline-none uppercase text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+                <option value="Em Negociação">Em Negociação</option>
                 <option value="Ativa">Ativa</option>
                 <option value="Pausada">Pausada</option>
                 <option value="Concluída">Concluída</option>
                 <option value="Cancelada">Cancelada</option>
             </select>
-
-            <button onClick={commit} className="p-1.5 rounded-md hover:bg-emerald-500/20 text-emerald-500 transition-colors"><Check size={16} /></button>
-            <button onClick={() => setEditing(false)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"><X size={16} /></button>
         </div>
-    );
-
-    return (
-        <button onClick={() => { setEditing(true); setDraftName(project.name); setDraftStatus(project.status || "Ativa"); }}
-            className="group flex items-center gap-3 mb-1 hover:opacity-80 transition-opacity text-left">
-            <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-            {project.status && (
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-muted text-muted-foreground uppercase">
-                    {project.status}
-                </span>
-            )}
-            <Pencil size={14} className="opacity-0 group-hover:opacity-70 transition-opacity text-muted-foreground" />
-        </button>
     );
 }
 
@@ -1301,11 +1350,9 @@ export function ObraDetailView({ project, categories }: {
                             <h1 className="text-2xl font-bold tracking-tight">
                                 {focusedService.service.name}
                             </h1>
-                            {project.status && (
-                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-muted text-muted-foreground uppercase">
-                                    {project.status}
-                                </span>
-                            )}
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-muted text-muted-foreground uppercase">
+                                {project.status || "Ativa"}
+                            </span>
                         </div>
                     ) : (
                         <ProjectHeaderEditor project={project} onRefresh={refresh} />
@@ -1326,10 +1373,31 @@ export function ObraDetailView({ project, categories }: {
                         <ArrowLeft size={12} /> Voltar para todos os serviços
                     </button>
                 ) : (
-                    <button onClick={() => setAddServiceOpen(true)}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/40 rounded-lg px-3 py-1.5 transition-all">
-                        <Plus size={11} /> Adicionar Serviço à Obra
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setAddServiceOpen(true)}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/40 rounded-lg px-3 py-1.5 transition-all">
+                            <Plus size={11} /> Adicionar Serviço à Obra
+                        </button>
+                        <button onClick={() => {
+                            if (confirm("Deseja duplicar esta obra? Apenas a estrutura (serviços e materiais) será copiada.")) {
+                                startTransition(async () => {
+                                    const res = await duplicateProject(project.id);
+                                    if (res.success && res.data) {
+                                        router.push(`/projetos/${res.data.id}`);
+                                    } else {
+                                        alert("Erro ao duplicar obra.");
+                                    }
+                                });
+                            }
+                        }}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/40 rounded-lg px-3 py-1.5 transition-all">
+                            {isPending ? <Loader2 size={11} className="animate-spin" /> : <Copy size={11} />} Duplicar Obra
+                        </button>
+                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1 ml-4"
+                            onClick={() => { setModalServiceId(undefined); setModalOpen(true); }}>
+                            <Plus size={11} /> Lançamento Geral
+                        </Button>
+                    </div>
                 )}
             </div>
 
@@ -1456,6 +1524,7 @@ export function ObraDetailView({ project, categories }: {
                                                 projectServiceId={ps.id} 
                                                 projectService={ps}
                                                 operCustos={operCustosDoServico}
+                                                categories={categories}
                                                 onRefresh={refresh} 
                                             />
                                         </TabsContent>

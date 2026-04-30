@@ -26,7 +26,7 @@ interface Obra {
     contract_value: number | null;
     transactions: Transaction[];
     project_services: ProjectService[];
-    entradas: number; saidas: number; margem: number; totalServicos: number;
+    entradas: number; saidas: number; margem: number; totalServicos: number; totalCustoEstimado: number;
 }
 interface Cliente {
     id: string; name: string; type: string | null; document: string | null;
@@ -46,10 +46,15 @@ const fmtDate = (iso: string) => {
 };
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-    negotiation: { label: "Negociação", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    "Em Negociação": { label: "Em Negociação", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    negotiation: { label: "Em Negociação", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    Ativa: { label: "Ativa", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
     active: { label: "Ativa", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+    Concluída: { label: "Concluída", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
     completed: { label: "Concluída", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
+    Pausada: { label: "Pausada", color: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20" },
     paused: { label: "Pausada", color: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20" },
+    Cancelada: { label: "Cancelada", color: "text-rose-400 bg-rose-500/10 border-rose-500/20" },
 };
 
 const TX_STATUS: Record<string, { label: string; icon: React.ElementType; cls: string }> = {
@@ -90,22 +95,20 @@ function ObraKanbanCard({
                 </div>
 
                 {/* KPIs da obra */}
-                <div className="grid grid-cols-2 gap-2 p-3 bg-background/60 rounded-xl border border-border/50">
+                <div className="grid grid-cols-3 gap-2 p-3 bg-background/60 rounded-xl border border-border/50">
                     <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Venda Estimada</p>
-                        <p className="text-xs font-bold text-foreground">{fmt(obra.totalServicos)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Venda (Est / Real)</p>
+                        <p className="text-xs font-bold text-emerald-400">{fmt(obra.totalServicos)} <span className="text-[9px] font-normal text-muted-foreground">/ {fmt(obra.entradas)}</span></p>
                     </div>
                     <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Receitas Reais</p>
-                        <p className="text-xs font-bold text-emerald-400">{fmt(obra.entradas)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Custo (Est / Real)</p>
+                        <p className="text-xs font-bold text-rose-400">{fmt(obra.totalCustoEstimado)} <span className="text-[9px] font-normal text-muted-foreground">/ {fmt(obra.saidas)}</span></p>
                     </div>
                     <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Custos Reais</p>
-                        <p className="text-xs font-bold text-rose-400">{fmt(obra.saidas)}</p>
-                    </div>
-                    <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Saldo C/V (Caixa)</p>
-                        <p className={`text-xs font-bold ${obra.margem >= 0 ? "text-primary" : "text-rose-400"}`}>{fmt(obra.margem)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Margem (Est / Real)</p>
+                        <p className={`text-xs font-bold ${obra.totalServicos - obra.totalCustoEstimado >= 0 ? "text-primary" : "text-rose-400"}`}>
+                            {fmt(obra.totalServicos - obra.totalCustoEstimado)} <span className="text-[9px] font-normal text-muted-foreground">/ {fmt(obra.margem)}</span>
+                        </p>
                     </div>
                 </div>
 
@@ -202,14 +205,18 @@ export function ClienteHubClient({ cliente, obras }: Props) {
         [obras, mesFiltro, statusFiltro]
     );
 
-    const totalEntradas = obrasFiltered.reduce((acc, o) =>
+    const obrasValidasParaCaixa = obrasFiltered.filter(o => o.status !== "Em Negociação" && o.status !== "negotiation" && o.status !== "Cancelada");
+
+    const totalEntradas = obrasValidasParaCaixa.reduce((acc, o) =>
         acc + o.transactions.filter(t => t.type === "Entrada" && t.status === "Pago").reduce((s, t) => s + t.amount, 0), 0);
-    const totalSaidas = obrasFiltered.reduce((acc, o) =>
+    const totalSaidas = obrasValidasParaCaixa.reduce((acc, o) =>
         acc + o.transactions.filter(t => t.type !== "Entrada" && t.status === "Pago").reduce((s, t) => s + t.amount, 0), 0);
-    const totalPendente = obrasFiltered.reduce((acc, o) =>
-        acc + o.transactions.filter(t => t.status === "Agendado" || t.status === "Atrasado").reduce((s, t) => s + t.amount, 0), 0);
+    
     const saldoLiquido = totalEntradas - totalSaidas;
-    const obrasAtivas = obras.filter(o => o.status === "active").length;
+
+    const obrasEmNegociacao = obrasFiltered.filter(o => o.status === "Em Negociação" || o.status === "negotiation");
+    const totalEmNegociacao = obrasEmNegociacao.reduce((acc, o) => acc + (o.contract_value || o.totalServicos || 0), 0);
+    const obrasAtivas = obras.filter(o => o.status === "Ativa" || o.status === "active").length;
 
     const labelMes = (m: string) => {
         if (m === "todos") return "Todos os períodos";
@@ -286,34 +293,34 @@ export function ClienteHubClient({ cliente, obras }: Props) {
                 <div className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                         <Wallet size={14} className={saldoLiquido >= 0 ? "text-primary" : "text-rose-400"} />
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo Líquido</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo Líquido Real</p>
                     </div>
                     <p className={`text-lg font-bold ${saldoLiquido >= 0 ? "text-primary" : "text-rose-400"}`}>{fmt(saldoLiquido)}</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">Entradas − Saídas pagas</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Entradas − Saídas (Obras ativas)</p>
                 </div>
                 <div className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                         <TrendingUp size={14} className="text-emerald-400" />
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Entradas Pagas</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Entradas Reais</p>
                     </div>
                     <p className="text-lg font-bold text-emerald-400">{fmt(totalEntradas)}</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">Confirmadas no período</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Valores pagos</p>
                 </div>
                 <div className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                         <TrendingDown size={14} className="text-rose-400" />
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saídas Pagas</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saídas Reais</p>
                     </div>
                     <p className="text-lg font-bold text-rose-400">{fmt(totalSaidas)}</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">Realizadas no período</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Valores pagos</p>
                 </div>
                 <div className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                         <Clock size={14} className="text-amber-400" />
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Pendente</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Em Negociação</p>
                     </div>
-                    <p className="text-lg font-bold text-amber-400">{fmt(totalPendente)}</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">{obrasAtivas} obra(s) ativa(s)</p>
+                    <p className="text-lg font-bold text-amber-400">{fmt(totalEmNegociacao)}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{obrasEmNegociacao.length} proposta(s) aberta(s)</p>
                 </div>
             </div>
 
@@ -336,10 +343,11 @@ export function ClienteHubClient({ cliente, obras }: Props) {
                     className="text-xs bg-background border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:border-primary/40"
                 >
                     <option value="todos">Todos os status</option>
-                    <option value="negotiation">Negociação</option>
-                    <option value="active">Ativa</option>
-                    <option value="completed">Concluída</option>
-                    <option value="paused">Pausada</option>
+                    <option value="Em Negociação">Em Negociação</option>
+                    <option value="Ativa">Ativa</option>
+                    <option value="Concluída">Concluída</option>
+                    <option value="Pausada">Pausada</option>
+                    <option value="Cancelada">Cancelada</option>
                 </select>
                 {(mesFiltro !== "todos" || statusFiltro !== "todos") && (
                     <button

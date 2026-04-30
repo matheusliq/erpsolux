@@ -36,15 +36,24 @@ export default async function ClienteHubPage({ params }: { params: Promise<{ ent
             return acc + mo + materiais;
         }, 0);
 
+        const totalCustoEstimado = p.project_services.reduce((acc, ps) => {
+            const moCost = Number(ps.service.mo_cost_value || 0);
+            const materiaisCost = ps.service.service_items.reduce(
+                (s, si) => s + Number(si.material.cost_price) * Number(si.quantity), 0
+            );
+            return acc + moCost + materiaisCost;
+        }, 0);
+
         return {
             id: p.id,
             name: p.name,
-            status: p.status ?? "negotiation",
+            status: p.status ?? "Em Negociação",
             contract_value: p.contract_value ? Number(p.contract_value) : null,
             entradas,
             saidas,
             margem,
             totalServicos,
+            totalCustoEstimado,
             project_services: p.project_services.map(ps => {
                 const mo = Number(ps.service.mo_sell_value);
                 const materiais = ps.service.service_items.reduce(

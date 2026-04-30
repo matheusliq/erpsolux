@@ -3,26 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// Mapa de prefixos SKU por categoria (extensível)
-const SKU_PREFIX_MAP: Record<string, string> = {
-    "TINTA": "TIN",
-    "TINTAS": "TIN",
-    "TINTAS ACR.": "TIN",
-    "ESMALTE": "ESM",
-    "ARGAMASSA": "ARG",
-    "CIMENTO": "CIM",
-    "LIXA": "LIX",
-    "FITA": "FIT",
-    "PINCEL": "PCL",
-    "ROLO": "ROL",
-    "ESTOPA": "EST",
-    "TRAPO": "TRP",
-    "SUPORTE": "SUP",
-    "CAÇAMBA": "CAC",
-    "LOGÍSTICA": "LOG",
-    "EPI": "EPI",
-    "DEFAULT": "MAT",
-};
+// A lógica de SKU agora é dinâmica e não usa mais mapa fixo
 
 /**
  * Gera automaticamente um SKU sequencial de 5 dígitos para um novo material
@@ -30,13 +11,15 @@ const SKU_PREFIX_MAP: Record<string, string> = {
  */
 async function generateSku(category: string): Promise<string> {
     const rawCategory = category.toUpperCase().trim();
-    let prefix = SKU_PREFIX_MAP["DEFAULT"];
-
-    for (const [key, value] of Object.entries(SKU_PREFIX_MAP)) {
-        if (rawCategory.includes(key)) {
-            prefix = value;
-            break;
-        }
+    
+    // Tenta extrair consoantes. Se não conseguir o suficiente, pega os primeiros caracteres.
+    const consonants = rawCategory.replace(/[^BCDFGHJKLMNPQRSTVWXYZ]/g, "");
+    let prefix = "MAT";
+    
+    if (consonants.length >= 3) {
+        prefix = consonants.substring(0, 3);
+    } else if (rawCategory.length >= 3) {
+        prefix = rawCategory.substring(0, 3).replace(/[^A-Z]/g, "X");
     }
 
     // Conta quantos SKUs com esse prefixo já existem
@@ -59,6 +42,7 @@ export async function getMateriais() {
                 ...m,
                 cost_price: Number(m.cost_price),
                 markup_factor: Number(m.markup_factor),
+                entity: m.entity,
             })),
         };
     } catch (error) {
@@ -109,6 +93,7 @@ export async function createMaterial(input: {
     cost_price: number;
     markup_factor?: number;
     is_resale?: boolean;
+    entity_id?: string | null;
 }) {
     try {
         const sku = await generateSku(input.category);
@@ -121,6 +106,7 @@ export async function createMaterial(input: {
                 cost_price: input.cost_price,
                 markup_factor: input.markup_factor ?? 1.8,
                 is_resale: input.is_resale ?? true,
+                entity_id: input.entity_id || null,
             },
         });
         revalidatePath("/materiais");
@@ -146,6 +132,7 @@ export async function updateMaterial(id: string, data: {
     markup_factor?: number;
     is_resale?: boolean;
     unit?: string;
+    entity_id?: string | null;
 }) {
     try {
         await prisma.materials.update({

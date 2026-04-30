@@ -13,10 +13,12 @@ import { Plus, Trash2, Search, Package } from "lucide-react";
 import {
     createMaterial, updateMaterial, deleteMaterial,
 } from "@/app/actions/materiais";
+import { createEntity } from "@/app/actions/entidades";
 
 type Material = {
     id: string; sku: string; category: string; description: string;
     unit: string; cost_price: number; markup_factor: number; is_resale: boolean;
+    entity_id?: string | null; entity?: any;
 };
 
 const formatBRL = (v: number) =>
@@ -25,12 +27,18 @@ const formatBRL = (v: number) =>
 // ─── Editable cell with bidirectional Markup ↔ Margem ───────────────────────
 function PriceRow({
     m,
+    categorias,
+    entidades,
     onUpdate,
     onDelete,
+    onOpenSupplierModal,
 }: {
     m: Material;
-    onUpdate: (id: string, field: keyof Material, value: number | boolean) => void;
+    categorias: any[];
+    entidades: any[];
+    onUpdate: (id: string, field: keyof Material, value: any) => void;
     onDelete: (id: string) => void;
+    onOpenSupplierModal: (materialId: string) => void;
 }) {
     const [costCents, setCostCents] = useState(Math.round(m.cost_price * 100));
     const [markup, setMarkup] = useState(m.markup_factor);
@@ -39,6 +47,10 @@ function PriceRow({
     );
     const [isResale, setIsResale] = useState(m.is_resale);
     const [qty, setQty] = useState(1);
+
+    const [desc, setDesc] = useState(m.description);
+    const [cat, setCat] = useState(m.category);
+    const [entId, setEntId] = useState(m.entity_id || "");
 
     const cost = costCents / 100;
     const venda = isResale ? cost * markup : cost;
@@ -88,8 +100,57 @@ function PriceRow({
                     {m.sku}
                 </span>
             </td>
-            <td className="p-3 font-medium text-foreground">{m.description}</td>
-            <td className="p-3 text-center text-muted-foreground text-xs">{m.category}</td>
+            <td className="p-3">
+                <input
+                    value={desc}
+                    onChange={e => setDesc(e.target.value)}
+                    onBlur={() => desc !== m.description && onUpdate(m.id, "description", desc)}
+                    className="w-full bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none transition-colors text-xs font-medium"
+                />
+            </td>
+            <td className="p-3 text-center">
+                <select
+                    value={cat}
+                    onChange={e => {
+                        setCat(e.target.value);
+                        onUpdate(m.id, "category", e.target.value);
+                    }}
+                    className="w-full bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none transition-colors text-xs text-muted-foreground text-center"
+                >
+                    {categorias.filter(c => c.is_material).map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                    {/* Add current category if it was deleted or doesn't exist anymore */}
+                    {!categorias.some(c => c.name === m.category && c.is_material) && (
+                        <option value={m.category}>{m.category}</option>
+                    )}
+                </select>
+            </td>
+            <td className="p-3">
+                <div className="relative">
+                    <select
+                        value={entId}
+                        onChange={e => {
+                            if (e.target.value === "NEW") {
+                                onOpenSupplierModal(m.id);
+                                setEntId(m.entity_id || "");
+                            } else {
+                                setEntId(e.target.value);
+                                onUpdate(m.id, "entity_id", e.target.value === "" ? null : e.target.value);
+                            }
+                        }}
+                        className={`w-full bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none transition-colors text-xs text-center truncate ${!entId ? "text-rose-500 font-bold" : "text-muted-foreground"}`}
+                        title={!entId ? "Fornecedor não informado" : ""}
+                    >
+                        <option value="">(Sem fornecedor)</option>
+                        {entidades.map(e => (
+                            <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
+                        <option value="NEW" className="font-bold text-primary">+ Criar Novo</option>
+                    </select>
+                    {!entId && <span className="absolute -right-1 top-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse" title="Fornecedor obrigatório" />}
+                </div>
+            </td>
             <td className="p-3 text-center text-muted-foreground uppercase text-xs">{m.unit}</td>
             {/* Qty */}
             <td className="p-3 text-center">
@@ -152,35 +213,18 @@ function PriceRow({
     );
 }
 
-// ─── Add Material Modal ───────────────────────────────────────────────────────
-const CATEGORY_OPTIONS = [
-    // ── Gerais ──────────────────────────────
-    { label: "Geral" as const, group: "geral" },
-    { label: "EPI", group: "geral" },
-    { label: "Logística", group: "geral" },
-    // ── Compras ─────────────────────────────
-    { label: "Tinta", group: "compras" },
-    { label: "Esmalte", group: "compras" },
-    { label: "Argamassa", group: "compras" },
-    { label: "Cimento", group: "compras" },
-    { label: "Pincel / Rolo", group: "compras" },
-    { label: "Lixa", group: "compras" },
-    { label: "Fita", group: "compras" },
-    { label: "Caçamba", group: "compras" },
-    { label: "Solvente", group: "compras" },
-    { label: "Outros", group: "compras" },
-];
-
-type MktMode = "markup" | "margem";
-
 function AddMaterialModal({
     open,
     onClose,
     onCreated,
+    categorias,
+    entidades,
 }: {
     open: boolean;
     onClose: () => void;
     onCreated: (m: Material) => void;
+    categorias: any[];
+    entidades: any[];
 }) {
     const [, startTransition] = useTransition();
     const [category, setCategory] = useState("");
@@ -191,6 +235,7 @@ function AddMaterialModal({
     const [markupStr, setMarkupStr] = useState("1.800");
     const [margemCents, setMargemCents] = useState(0);
     const [isResale, setIsResale] = useState(true);
+    const [entityId, setEntityId] = useState("");
 
     const cost = costCents / 100;
     const markup = parseFloat(markupStr) || 1;
@@ -231,13 +276,14 @@ function AddMaterialModal({
                 cost_price: cost,
                 markup_factor: finalMarkup,
                 is_resale: isResale,
+                entity_id: entityId || null,
             });
             if (res.success && res.data) {
                 onCreated(res.data as Material);
                 onClose();
                 // reset
                 setCategory(""); setDescription(""); setUnit("unid");
-                setCostCents(0); setMarkupStr("1.800"); setMargemCents(0); setIsResale(true);
+                setCostCents(0); setMarkupStr("1.800"); setMargemCents(0); setIsResale(true); setEntityId("");
             } else {
                 alert(res.error ?? "Erro ao adicionar material.");
             }
@@ -266,16 +312,24 @@ function AddMaterialModal({
                             className="col-span-2 h-8 text-xs rounded-md border border-input bg-transparent px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                             <option value="" disabled>Selecione...</option>
-                            <optgroup label="── Gerais ──">
-                                {CATEGORY_OPTIONS.filter(c => c.group === "geral").map(c => (
-                                    <option key={c.label} value={c.label}>{c.label}</option>
-                                ))}
-                            </optgroup>
-                            <optgroup label="── Compras ──">
-                                {CATEGORY_OPTIONS.filter(c => c.group === "compras").map(c => (
-                                    <option key={c.label} value={c.label}>{c.label}</option>
-                                ))}
-                            </optgroup>
+                            {categorias.filter(c => c.is_material).map(c => (
+                                <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Fornecedor */}
+                    <div className="grid grid-cols-3 items-center gap-3">
+                        <label className="text-xs text-muted-foreground text-right">Fornecedor</label>
+                        <select
+                            value={entityId}
+                            onChange={(e) => setEntityId(e.target.value)}
+                            className={`col-span-2 h-8 text-xs rounded-md border border-input bg-transparent px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${!entityId ? "text-rose-500 font-bold" : ""}`}
+                        >
+                            <option value="">Selecione (Obrigatório)</option>
+                            {entidades.map(e => (
+                                <option key={e.id} value={e.id}>{e.name}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -400,11 +454,14 @@ function AddMaterialModal({
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function MateriaisClient({ initialData }: { initialData: Material[] }) {
+export default function MateriaisClient({ initialData, categorias, entidades }: { initialData: Material[], categorias: any[], entidades: any[] }) {
     const [data, setData] = useState<Material[]>(initialData);
+    const [ents, setEnts] = useState<any[]>(entidades);
     const [search, setSearch] = useState("");
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [addOpen, setAddOpen] = useState(false);
+    const [newSupplierMaterialId, setNewSupplierMaterialId] = useState<string | null>(null);
+    const [newSupplierName, setNewSupplierName] = useState("");
     const [, startTransition] = useTransition();
 
     const filtered = data.filter((m) =>
@@ -413,10 +470,27 @@ export default function MateriaisClient({ initialData }: { initialData: Material
         m.category.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleCellUpdate = (id: string, field: keyof Material, value: number | boolean) => {
+    const handleCellUpdate = (id: string, field: keyof Material, value: any) => {
         setData((prev) => prev.map((m) => m.id === id ? { ...m, [field]: value } : m));
         startTransition(async () => {
             await updateMaterial(id, { [field]: value });
+        });
+    };
+
+    const handleCreateSupplier = () => {
+        if (!newSupplierName.trim()) return;
+        startTransition(async () => {
+            const res = await createEntity({ name: newSupplierName, type: "supplier" });
+            if (res.success && res.data) {
+                setEnts(prev => [...prev, res.data]);
+                if (newSupplierMaterialId) {
+                    handleCellUpdate(newSupplierMaterialId, "entity_id", res.data.id);
+                }
+                setNewSupplierMaterialId(null);
+                setNewSupplierName("");
+            } else {
+                alert("Erro ao criar fornecedor");
+            }
         });
     };
 
@@ -469,6 +543,7 @@ export default function MateriaisClient({ initialData }: { initialData: Material
                                 <th className="p-3 text-left font-semibold text-muted-foreground w-28">SKU</th>
                                 <th className="p-3 text-left font-semibold text-muted-foreground">Descrição</th>
                                 <th className="p-3 text-center font-semibold text-muted-foreground w-28">Categoria</th>
+                                <th className="p-3 text-center font-semibold text-muted-foreground w-36">Fornecedor</th>
                                 <th className="p-3 text-center font-semibold text-muted-foreground w-16">Unid.</th>
                                 <th className="p-3 text-center font-semibold text-muted-foreground w-16">Qtd.</th>
                                 <th className="p-3 text-center font-semibold text-muted-foreground w-20">Revenda?</th>
@@ -492,8 +567,11 @@ export default function MateriaisClient({ initialData }: { initialData: Material
                                 <PriceRow
                                     key={m.id}
                                     m={m}
+                                    categorias={categorias}
+                                    entidades={ents}
                                     onUpdate={handleCellUpdate}
                                     onDelete={(id) => setDeleteId(id)}
+                                    onOpenSupplierModal={(id) => setNewSupplierMaterialId(id)}
                                 />
                             ))}
                         </tbody>
@@ -506,6 +584,8 @@ export default function MateriaisClient({ initialData }: { initialData: Material
                 open={addOpen}
                 onClose={() => setAddOpen(false)}
                 onCreated={(m) => setData((prev) => [...prev, m])}
+                categorias={categorias}
+                entidades={ents}
             />
 
             {/* Modal Delete */}
@@ -521,6 +601,31 @@ export default function MateriaisClient({ initialData }: { initialData: Material
                         <Button variant="ghost" onClick={() => setDeleteId(null)}>Cancelar</Button>
                         <Button variant="destructive" onClick={() => deleteId && handleDelete(deleteId)}>
                             Excluir
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Criar Fornecedor Rápido */}
+            <Dialog open={!!newSupplierMaterialId} onOpenChange={() => setNewSupplierMaterialId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Novo Fornecedor</DialogTitle>
+                        <DialogDescription>
+                            Adicione um fornecedor rapidamente para vincular ao material.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Input 
+                            value={newSupplierName} 
+                            onChange={e => setNewSupplierName(e.target.value)}
+                            placeholder="Nome do Fornecedor..."
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setNewSupplierMaterialId(null)}>Cancelar</Button>
+                        <Button onClick={handleCreateSupplier} disabled={!newSupplierName.trim()}>
+                            Criar e Vincular
                         </Button>
                     </DialogFooter>
                 </DialogContent>

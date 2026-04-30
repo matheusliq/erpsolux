@@ -10,7 +10,7 @@ const sanitizeCategory = (cat: any) => ({
     monthly_budget: cat.monthly_budget ? Number(cat.monthly_budget) : null,
 });
 
-export async function createCategory(data: { name: string; color: string; type: string }) {
+export async function createCategory(data: { name: string; color: string; type: string; is_material_category?: boolean }) {
     try {
         const dbType = data.type === "entrada" ? "Entrada" : "Sa_da";
         const newCategory = await prisma.categories.create({
@@ -18,6 +18,7 @@ export async function createCategory(data: { name: string; color: string; type: 
                 name: data.name,
                 color: data.color,
                 type: dbType,
+                is_material_category: data.is_material_category ?? false,
             },
         });
         revalidatePath("/configuracoes");
@@ -28,30 +29,31 @@ export async function createCategory(data: { name: string; color: string; type: 
     }
 }
 
-export async function getCategories() {
+export async function getCategories(options: { showAllCaps?: boolean } = {}) {
     try {
-        // Busca todas as categorias financeiras e as categorias cadastradas nos materiais simultaneamente
-        const [categorias, materialCats] = await Promise.all([
-            prisma.categories.findMany({ orderBy: { name: 'asc' } }),
-            prisma.materials.findMany({ select: { category: true }, distinct: ['category'] })
-        ]);
+        // Busca todas as categorias financeiras (e flag is_material_category já vem do banco)
+        const categorias = await prisma.categories.findMany({ orderBy: { name: 'asc' } });
 
-        const matCatSet = new Set(materialCats.map(m => m.category.toLowerCase()));
-
-        // Passa todas as categorias pelo "tradutor" antes de mandar para a tela e marca as de material
+        // Passa todas as categorias pelo "tradutor" antes de mandar para a tela e usa a flag nativa do banco
         const sanitizedData = categorias.map(c => ({
             ...sanitizeCategory(c),
-            is_material: matCatSet.has(c.name.toLowerCase())
+            is_material: c.is_material_category === true
         }));
 
-        return { success: true, data: sanitizedData };
+        // Se showAllCaps for false (comportamento padrão), oculta categorias em CAPS LOCK (ex: ROLOS)
+        let finalData = sanitizedData;
+        if (!options.showAllCaps) {
+            finalData = sanitizedData.filter(c => c.name !== c.name.toUpperCase());
+        }
+
+        return { success: true, data: finalData };
     } catch (error) {
         console.error("Erro ao buscar categorias:", error);
         return { success: false, error: "Falha ao buscar categorias." };
     }
 }
 
-export async function updateCategory(id: string, data: { name: string; color: string; type: string }) {
+export async function updateCategory(id: string, data: { name: string; color: string; type: string; is_material_category?: boolean }) {
     try {
         const dbType = data.type === "entrada" ? "Entrada" : "Sa_da";
         const updatedCategory = await prisma.categories.update({
@@ -60,6 +62,7 @@ export async function updateCategory(id: string, data: { name: string; color: st
                 name: data.name,
                 color: data.color,
                 type: dbType,
+                is_material_category: data.is_material_category,
             },
         });
         revalidatePath("/configuracoes");
