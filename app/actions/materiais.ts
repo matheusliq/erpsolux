@@ -34,6 +34,7 @@ async function generateSku(category: string): Promise<string> {
 export async function getMateriais() {
     try {
         const data = await prisma.materials.findMany({
+            include: { entity: true },
             orderBy: [{ category: "asc" }, { description: "asc" }],
         });
         return {
