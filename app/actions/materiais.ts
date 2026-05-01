@@ -34,7 +34,6 @@ async function generateSku(category: string): Promise<string> {
 export async function getMateriais() {
     try {
         const data = await prisma.materials.findMany({
-            include: { entity: true },
             orderBy: [{ category: "asc" }, { description: "asc" }],
         });
         return {
@@ -43,7 +42,7 @@ export async function getMateriais() {
                 ...m,
                 cost_price: Number(m.cost_price),
                 markup_factor: Number(m.markup_factor),
-                entity: m.entity,
+                entity_id: (m as any).entity_id ?? null,
             })),
         };
     } catch (error) {
@@ -107,7 +106,7 @@ export async function createMaterial(input: {
                 cost_price: input.cost_price,
                 markup_factor: input.markup_factor ?? 1.8,
                 is_resale: input.is_resale ?? true,
-                entity_id: input.entity_id || null,
+                ...(input.entity_id ? { entity_id: input.entity_id } : {}),
             },
         });
         revalidatePath("/materiais");

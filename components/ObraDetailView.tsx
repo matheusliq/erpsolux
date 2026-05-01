@@ -1304,7 +1304,7 @@ export function ObraDetailView({ project, categories }: {
     const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
     const [addServiceOpen, setAddServiceOpen] = useState(false);
     const [serviceName, setServiceName] = useState("");
-    const [, startTransition] = useTransition();
+    const [isPending, startTransition] = useTransition();
 
     const focusedService = focusedServiceId
         ? project.project_services.find((ps) => ps.id === focusedServiceId) ?? null

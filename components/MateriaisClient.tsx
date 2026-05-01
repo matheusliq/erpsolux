@@ -21,6 +21,8 @@ type Material = {
     entity_id?: string | null; entity?: any;
 };
 
+type MktMode = "markup" | "margem";
+
 const formatBRL = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 

@@ -17,9 +17,11 @@ export async function createCategory(data: { name: string; color: string; type: 
             data: {
                 name: data.name,
                 color: data.color,
-                type: dbType,
-                is_material_category: data.is_material_category ?? false,
-            },
+                type: dbType as any,
+                ...(data.is_material_category !== undefined
+                    ? { is_material_category: data.is_material_category }
+                    : {}),
+            } as any,
         });
         revalidatePath("/configuracoes");
         return { success: true, data: sanitizeCategory(newCategory) };
@@ -37,7 +39,7 @@ export async function getCategories(options: { showAllCaps?: boolean } = {}) {
         // Passa todas as categorias pelo "tradutor" antes de mandar para a tela e usa a flag nativa do banco
         const sanitizedData = categorias.map(c => ({
             ...sanitizeCategory(c),
-            is_material: c.is_material_category === true
+            is_material: (c as any).is_material_category === true
         }));
 
         // Se showAllCaps for false (comportamento padrão), oculta categorias em CAPS LOCK (ex: ROLOS)
@@ -61,9 +63,11 @@ export async function updateCategory(id: string, data: { name: string; color: st
             data: {
                 name: data.name,
                 color: data.color,
-                type: dbType,
-                is_material_category: data.is_material_category,
-            },
+                type: dbType as any,
+                ...(data.is_material_category !== undefined
+                    ? { is_material_category: data.is_material_category }
+                    : {}),
+            } as any,
         });
         revalidatePath("/configuracoes");
         return { success: true, data: sanitizeCategory(updatedCategory) };

@@ -37,7 +37,7 @@ export default async function ClienteHubPage({ params }: { params: Promise<{ ent
         }, 0);
 
         const totalCustoEstimado = p.project_services.reduce((acc, ps) => {
-            const moCost = Number(ps.service.mo_cost_value || 0);
+            const moCost = Number((ps as any).mo_custom_value || ps.service.mo_value || 0);
             const materiaisCost = ps.service.service_items.reduce(
                 (s, si) => s + Number(si.material.cost_price) * Number(si.quantity), 0
             );
