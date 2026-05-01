@@ -68,6 +68,7 @@ export default async function ObraDetailPage({
                 status: t.status ?? "Agendado",
                 due_date: encodedDate,
                 project_service_id: t.project_service_id,
+                category_id: t.category_id ?? null,
                 categories: t.categories
                     ? { name: t.categories.name, color: t.categories.color ?? "#cbd5e1" }
                     : null,
