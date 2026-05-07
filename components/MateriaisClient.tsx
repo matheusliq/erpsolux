@@ -111,22 +111,21 @@ function PriceRow({
                 />
             </td>
             <td className="p-3 text-center">
-                <select
+                <Input
+                    list={`cat-list-${m.id}`}
                     value={cat}
-                    onChange={e => {
-                        setCat(e.target.value);
-                        onUpdate(m.id, "category", e.target.value);
-                    }}
-                    className="w-full bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none transition-colors text-xs text-muted-foreground text-center"
-                >
+                    onChange={e => setCat(e.target.value)}
+                    onBlur={() => cat !== m.category && onUpdate(m.id, "category", cat)}
+                    className="w-full h-7 bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none transition-colors text-xs text-muted-foreground text-center px-1"
+                />
+                <datalist id={`cat-list-${m.id}`}>
                     {categorias.filter(c => c.is_material).map(c => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
+                        <option key={c.id} value={c.name} />
                     ))}
-                    {/* Add current category if it was deleted or doesn't exist anymore */}
                     {!categorias.some(c => c.name === m.category && c.is_material) && (
-                        <option value={m.category}>{m.category}</option>
+                        <option value={m.category} />
                     )}
-                </select>
+                </datalist>
             </td>
             <td className="p-3">
                 <div className="relative">
@@ -227,6 +226,7 @@ function AddMaterialModal({
     onCreated: (m: Material) => void;
     categorias: any[];
     entidades: any[];
+    onSupplierAdded: (s: any) => void;
 }) {
     const [, startTransition] = useTransition();
     const [category, setCategory] = useState("");
@@ -238,6 +238,10 @@ function AddMaterialModal({
     const [margemCents, setMargemCents] = useState(0);
     const [isResale, setIsResale] = useState(true);
     const [entityId, setEntityId] = useState("");
+
+    const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
+    const [newSupplierName, setNewSupplierName] = useState("");
+    const [isSavingSupplier, setIsSavingSupplier] = useState(false);
 
     const cost = costCents / 100;
     const markup = parseFloat(markupStr) || 1;
@@ -265,6 +269,27 @@ function AddMaterialModal({
         if (cost > 0) {
             const mk = (cost + cents / 100) / cost;
             setMarkupStr(mk.toFixed(3));
+        }
+    };
+
+    const handleQuickAddSupplier = async () => {
+        if (!newSupplierName.trim()) {
+            setIsCreatingSupplier(false);
+            setEntityId("");
+            return;
+        }
+        setIsSavingSupplier(true);
+        const res = await createEntity({ name: newSupplierName, type: "supplier" });
+        setIsSavingSupplier(false);
+        if (res.success && res.data) {
+            onSupplierAdded(res.data);
+            setEntityId(res.data.id);
+            setIsCreatingSupplier(false);
+            setNewSupplierName("");
+        } else {
+            alert(res.error || "Erro ao criar fornecedor");
+            setIsCreatingSupplier(false);
+            setEntityId("");
         }
     };
 
@@ -305,34 +330,67 @@ function AddMaterialModal({
                 </DialogHeader>
 
                 <div className="space-y-3 py-2">
-                    {/* Categoria — dropdown */}
+                    {/* Categoria — datalist dinâmico */}
                     <div className="grid grid-cols-3 items-center gap-3">
                         <label className="text-xs text-muted-foreground text-right">Categoria</label>
-                        <select
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                            className="col-span-2 h-8 text-xs rounded-md border border-input bg-transparent px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                            <option value="" disabled>Selecione...</option>
-                            {categorias.filter(c => c.is_material).map(c => (
-                                <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                        </select>
+                        <div className="col-span-2">
+                            <Input
+                                list="categorias-list-add"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                placeholder="Selecione ou digite nova..."
+                                className="h-8 text-xs w-full"
+                            />
+                            <datalist id="categorias-list-add">
+                                {categorias.filter(c => c.is_material).map(c => (
+                                    <option key={c.id} value={c.name} />
+                                ))}
+                            </datalist>
+                        </div>
                     </div>
 
                     {/* Fornecedor */}
                     <div className="grid grid-cols-3 items-center gap-3">
                         <label className="text-xs text-muted-foreground text-right">Fornecedor</label>
-                        <select
-                            value={entityId}
-                            onChange={(e) => setEntityId(e.target.value)}
-                            className={`col-span-2 h-8 text-xs rounded-md border border-input bg-transparent px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${!entityId ? "text-rose-500 font-bold" : ""}`}
-                        >
-                            <option value="">Selecione (Obrigatório)</option>
-                            {entidades.map(e => (
-                                <option key={e.id} value={e.id}>{e.name}</option>
-                            ))}
-                        </select>
+                        {isCreatingSupplier ? (
+                            <div className="col-span-2 flex items-center gap-2">
+                                <Input 
+                                    className="h-8 text-xs flex-1" 
+                                    placeholder="Nome..." 
+                                    value={newSupplierName}
+                                    onChange={e => setNewSupplierName(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === "Enter" && handleQuickAddSupplier()}
+                                />
+                                <Button 
+                                    size="sm" 
+                                    variant="secondary"
+                                    className="h-8 text-xs px-2"
+                                    onClick={handleQuickAddSupplier}
+                                    disabled={isSavingSupplier}
+                                >
+                                    {isSavingSupplier ? "..." : "OK"}
+                                </Button>
+                            </div>
+                        ) : (
+                            <select
+                                value={entityId}
+                                onChange={(e) => {
+                                    if (e.target.value === "NEW") {
+                                        setIsCreatingSupplier(true);
+                                    } else {
+                                        setEntityId(e.target.value);
+                                    }
+                                }}
+                                className={`col-span-2 h-8 text-xs rounded-md border border-input bg-transparent px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${!entityId ? "text-rose-500 font-bold" : ""}`}
+                            >
+                                <option value="">Selecione (Obrigatório)</option>
+                                {entidades.map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                ))}
+                                <option value="NEW" className="font-bold text-primary">+ Criar Novo</option>
+                            </select>
+                        )}
                     </div>
 
                     {/* Descrição */}
@@ -581,13 +639,13 @@ export default function MateriaisClient({ initialData, categorias, entidades }: 
                 </div>
             </div>
 
-            {/* Modal Add */}
             <AddMaterialModal
                 open={addOpen}
                 onClose={() => setAddOpen(false)}
                 onCreated={(m) => setData((prev) => [...prev, m])}
                 categorias={categorias}
                 entidades={ents}
+                onSupplierAdded={(s) => setEnts((prev) => [...prev, s])}
             />
 
             {/* Modal Delete */}
