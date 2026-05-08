@@ -220,6 +220,7 @@ function AddMaterialModal({
     onCreated,
     categorias,
     entidades,
+    onSupplierAdded,
 }: {
     open: boolean;
     onClose: () => void;
