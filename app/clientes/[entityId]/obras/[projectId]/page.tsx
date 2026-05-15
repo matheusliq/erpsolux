@@ -49,7 +49,7 @@ export default async function ObraDetailPage({
         name: project.name,
         status: project.status,
         contract_value: project.contract_value ? Number(project.contract_value) : null,
-        entity: project.entity ? { name: project.entity.name } : null,
+        entity: project.entity ? { id: project.entity.id, name: project.entity.name } : null,
         transactions: project.transactions.map((t) => {
             let encodedDate = "";
             try {
