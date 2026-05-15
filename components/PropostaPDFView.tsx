@@ -170,14 +170,14 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                     <p className="text-sm text-zinc-500 italic">Nenhum serviço cadastrado.</p>
                                 ) : (
                                     servicesToRender.map((ps: any, idx: number) => (
-                                        <div key={ps.id} className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 print:break-inside-avoid">
+                                        <div key={ps.id} className="bg-zinc-50 p-4 rounded-lg border border-zinc-100">
                                             <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
                                                 <span className="bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded text-xs">{idx + 1}</span>
                                                 {ps.service.name}
                                             </h3>
                                             <div className="overflow-x-auto print:overflow-visible mt-3 w-full pb-2 print:pb-0">
                                                 <table className="w-full text-xs text-left min-w-[600px] print:min-w-full">
-                                                    <thead className="bg-zinc-100 text-zinc-500 border-b border-zinc-200">
+                                                    <thead className="bg-zinc-100 text-zinc-500 border-b border-zinc-200 print:break-inside-avoid">
                                                         <tr>
                                                             <th className="p-2 font-medium">Item / Descrição</th>
                                                             <th className="p-2 font-medium text-center">Qtd</th>
@@ -193,7 +193,7 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                             const materialVendaTotal = materialVendaUnit * item.quantity;
                                                             
                                                             return (
-                                                                <tr key={item.id} className="text-zinc-700">
+                                                                <tr key={item.id} className="text-zinc-700 print:break-inside-avoid">
                                                                     <td className="p-2">
                                                                         <span 
                                                                             className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors block w-full p-0.5 -ml-0.5"
@@ -214,7 +214,7 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                             const moVenda = ps.mo_type === "custom" && ps.mo_custom_value !== null ? ps.mo_custom_value : (ps.mo_custom_value ?? 0);
                                                             if (moVenda > 0) {
                                                                 return (
-                                                                    <tr className="bg-zinc-50 border-t border-zinc-200">
+                                                                    <tr className="bg-zinc-50 border-t border-zinc-200 print:break-inside-avoid">
                                                                         <td className="p-2 font-medium text-zinc-600" colSpan={3} contentEditable suppressContentEditableWarning spellCheck={false}>
                                                                             Mão de Obra Especializada / Instalação
                                                                         </td>
@@ -234,7 +234,7 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
 
                                                             if (operVendaService > 0) {
                                                                 return (
-                                                                    <tr className="bg-zinc-50 border-t border-zinc-200">
+                                                                    <tr className="bg-zinc-50 border-t border-zinc-200 print:break-inside-avoid">
                                                                         <td className="p-2 font-medium text-zinc-600" colSpan={3} contentEditable suppressContentEditableWarning spellCheck={false}>
                                                                             Custos Operacionais
                                                                         </td>
@@ -339,14 +339,14 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                     const margemLocal = (vendaMatLocal + moVenda + operVendaLocal) - (custoMatLocal + operCustoLocal);
 
                                     return (
-                                        <div key={ps.id} className="border border-zinc-200 rounded-lg overflow-hidden print:break-inside-avoid print:mb-6">
+                                        <div key={ps.id} className="border border-zinc-200 rounded-lg overflow-hidden print:mb-6">
                                             <div className="bg-zinc-100 p-3 flex justify-between items-center border-b border-zinc-200">
                                                 <h3 className="font-bold text-sm text-zinc-800">{idx + 1}. {ps.service.name}</h3>
                                                 <span className="text-xs font-bold text-emerald-600">Margem: {formatBRL(margemLocal)}</span>
                                             </div>
                                             <div className="p-0 overflow-x-auto print:overflow-visible w-full pb-2 print:pb-0">
                                                 <table className="w-full text-xs text-left min-w-[600px] print:min-w-full">
-                                                    <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-100">
+                                                    <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-100 print:break-inside-avoid">
                                                         <tr>
                                                             <th className="p-2 font-medium">SKU / Insumo</th>
                                                             <th className="p-2 font-medium text-center">Qtd</th>
@@ -357,7 +357,7 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                     </thead>
                                                     <tbody className="divide-y divide-zinc-100">
                                                         {ps.service.service_items.map((item: any) => (
-                                                            <tr key={item.id} className="text-zinc-700">
+                                                            <tr key={item.id} className="text-zinc-700 print:break-inside-avoid">
                                                                 <td className="p-2">
                                                                     <span className="font-mono text-[10px] bg-zinc-100 px-1 py-0.5 rounded mr-2">{item.material.sku}</span>
                                                                     {item.material.description}
