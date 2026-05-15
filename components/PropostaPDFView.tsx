@@ -126,7 +126,10 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                             <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
                                 <Settings size={18} className="text-emerald-600" /> Introdução
                             </h2>
-                            <p className="text-sm leading-relaxed text-zinc-700 text-justify">
+                            <p 
+                                className="text-sm leading-relaxed text-zinc-700 text-justify hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-1 -m-1"
+                                contentEditable suppressContentEditableWarning spellCheck={false}
+                            >
                                 A <strong>Solux Pinturas e Revestimentos</strong> agradece a oportunidade de apresentar esta proposta comercial e técnica. 
                                 Nossa missão é tornar o técnico simples e simplificar o técnico, oferecendo engenharia de superfície com foco na previsibilidade, inteligência de mercado e transparência absoluta. Não entregamos apenas aplicações de tintas; entregamos a solução técnica definitiva para o seu ambiente.
                             </p>
@@ -149,8 +152,13 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                             <ul className="mt-3 space-y-1">
                                                 {ps.service.service_items.map((item: any) => (
                                                     <li key={item.id} className="text-xs text-zinc-600 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                                                        {item.material.description} ({item.quantity} {item.material.unit})
+                                                        <div className="w-1 h-1 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                                                        <span 
+                                                            className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors w-full p-0.5 -ml-0.5"
+                                                            contentEditable suppressContentEditableWarning spellCheck={false}
+                                                        >
+                                                            {item.material.description} ({item.quantity} {item.material.unit})
+                                                        </span>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -168,18 +176,18 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                     <p className="text-3xl font-black tracking-tight">{formatBRL(totalVendaFinal)}</p>
                                 </div>
                                 <div className="text-right text-xs text-zinc-400 space-y-1">
-                                    <p>Inclui mão de obra técnica especializada.</p>
-                                    <p>Inclui gestão, RT e garantia estrutural.</p>
+                                    <p className="hover:bg-zinc-800 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Inclui mão de obra técnica especializada.</p>
+                                    <p className="hover:bg-zinc-800 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Inclui gestão, RT e garantia estrutural.</p>
                                 </div>
                             </div>
                         </section>
 
                         <section className="text-xs text-zinc-500 bg-zinc-50 p-4 rounded-lg border border-zinc-100 mt-8">
                             <h4 className="font-bold text-zinc-700 mb-2">Condições Comerciais e Garantia</h4>
-                            <ul className="list-disc pl-4 space-y-1">
-                                <li><strong>Garantia:</strong> 12 meses contra desplacamentos decorrentes de falhas de preparação de superfície.</li>
-                                <li><strong>Validade:</strong> Proposta válida por 15 dias corridos.</li>
-                                <li>O escopo não abrange reparos em anomalias ocultas não descritas no orçamento.</li>
+                            <ul className="list-disc pl-4 space-y-1 outline-none" contentEditable suppressContentEditableWarning spellCheck={false}>
+                                <li className="hover:bg-zinc-100/50 rounded transition-colors p-0.5"><strong>Garantia:</strong> 12 meses contra desplacamentos decorrentes de falhas de preparação de superfície.</li>
+                                <li className="hover:bg-zinc-100/50 rounded transition-colors p-0.5"><strong>Validade:</strong> Proposta válida por 15 dias corridos.</li>
+                                <li className="hover:bg-zinc-100/50 rounded transition-colors p-0.5">O escopo não abrange reparos em anomalias ocultas não descritas no orçamento.</li>
                             </ul>
                         </section>
                     </div>
