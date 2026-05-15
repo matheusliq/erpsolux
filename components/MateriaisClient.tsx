@@ -597,8 +597,8 @@ export default function MateriaisClient({ initialData, categorias, entidades }: 
 
             {/* Table */}
             <div className="rounded-xl border border-border overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
+                <div className="overflow-x-auto w-full pb-2">
+                    <table className="w-full text-xs min-w-[1000px]">
                         <thead className="bg-muted/50 border-b border-border">
                             <tr>
                                 <th className="p-3 text-left font-semibold text-muted-foreground w-28">SKU</th>

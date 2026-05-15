@@ -255,13 +255,13 @@ export default function KanbanPage() {
                 </div>
             ) : (
                 <DragDropContext onDragEnd={onDragEnd}>
-                    <div className="flex gap-4 overflow-x-auto pb-4 flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div className="flex gap-4 overflow-x-auto pb-4 flex-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         {allMonths.map((mk) => {
                             const stats = getMonthStats(mk);
                             const monthCats = monthMap[mk] || {};
 
                             return (
-                                <div key={mk} className="w-72 shrink-0 flex flex-col">
+                                <div key={mk} className="w-[85vw] sm:w-72 shrink-0 flex flex-col snap-center sm:snap-start">
                                     {/* Column header */}
                                     <div className="bg-card border border-zinc-800 rounded-xl p-4 mb-3">
                                         <h2 className="text-sm font-bold text-foreground mb-3 capitalize">{getMonthLabel(mk)}</h2>

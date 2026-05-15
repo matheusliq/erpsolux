@@ -168,8 +168,8 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                 <span className="bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded text-xs">{idx + 1}</span>
                                                 {ps.service.name}
                                             </h3>
-                                            <div className="overflow-x-auto mt-3">
-                                                <table className="w-full text-xs text-left">
+                                            <div className="overflow-x-auto mt-3 w-full pb-2">
+                                                <table className="w-full text-xs text-left min-w-[600px]">
                                                     <thead className="bg-zinc-100 text-zinc-500 border-b border-zinc-200">
                                                         <tr>
                                                             <th className="p-2 font-medium">Item / Descrição</th>
@@ -337,8 +337,8 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                 <h3 className="font-bold text-sm text-zinc-800">{idx + 1}. {ps.service.name}</h3>
                                                 <span className="text-xs font-bold text-emerald-600">Margem: {formatBRL(margemLocal)}</span>
                                             </div>
-                                            <div className="p-0">
-                                                <table className="w-full text-xs text-left">
+                                            <div className="p-0 overflow-x-auto w-full pb-2">
+                                                <table className="w-full text-xs text-left min-w-[600px]">
                                                     <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-100">
                                                         <tr>
                                                             <th className="p-2 font-medium">SKU / Insumo</th>

@@ -140,13 +140,13 @@ function EditableCell({
     if (editing) return (
         <Input value={draft} onChange={(e) => setDraft(e.target.value)}
             onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-            className={`h-7 ${isQty ? "w-16" : "w-24"} text-right font-mono text-xs px-2`} autoFocus />
+            className={`h-9 sm:h-7 ${isQty ? "w-16" : "w-24"} text-right font-mono text-xs px-2 min-w-[60px]`} autoFocus />
     );
     return (
         <button onClick={() => { setEditing(true); setDraft(fmt2(value)); }}
-            className={`group flex items-center gap-1 hover:text-primary transition-colors ${className}`}>
+            className={`group flex items-center justify-end gap-2 hover:text-primary transition-colors min-h-[36px] min-w-[44px] ${className}`}>
             <span>{isQty ? draft : formatBRL(value)}</span>
-            <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+            <Pencil size={11} className="opacity-0 group-hover:opacity-60 transition-opacity" />
         </button>
     );
 }
@@ -444,8 +444,8 @@ function MaterialsTab({ projectService, operCustos, onRefresh }: {
             </div>
 
             <div className="rounded-xl border border-border overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
+                <div className="overflow-x-auto w-full pb-2">
+                    <table className="w-full text-xs min-w-[800px]">
                         <thead className="bg-muted/50 border-b border-border">
                             <tr>
                                 <th className="p-3 w-8"><Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} /></th>
@@ -696,8 +696,9 @@ function ExpensesTab({
             )}
 
             <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-xs">
-                    <thead className="bg-muted/50 border-b border-border">
+                <div className="overflow-x-auto w-full pb-2">
+                    <table className="w-full text-xs min-w-[800px]">
+                        <thead className="bg-muted/50 border-b border-border">
                         <tr>
                             <th className="p-3 w-8"><Checkbox checked={selected.size === custos.length && custos.length > 0} onCheckedChange={toggleAll} /></th>
                             <th className="p-3 text-left font-semibold text-muted-foreground"><SortBtn k="name" label="Descrição" /></th>
@@ -790,6 +791,7 @@ function ExpensesTab({
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
             <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
                 <DialogContent>

@@ -205,9 +205,56 @@ export const TOOL_DECLARATIONS = [
                     description: "Quantidade de meses à frente para projetar (padrão: 3)",
                 },
             },
+        },
+    },
+    {
+        name: "list_projects",
+        description: "Lista as obras/projetos cadastrados no sistema. Retorna nome, status, valor de contrato, cliente e ID.",
+        parameters: {
+            type: "object",
+            properties: {
+                status: { type: "string", enum: ["todos", "negotiation", "active", "completed", "paused"] },
+                search: { type: "string", description: "Busca no nome do projeto" }
+            },
             required: [],
         },
     },
+    {
+        name: "create_project",
+        description: "Cria uma nova obra/projeto.",
+        parameters: {
+            type: "object",
+            properties: {
+                name: { type: "string", description: "Nome da obra" },
+                client_name: { type: "string", description: "Nome do cliente (opcional)" },
+                contract_value: { type: "number", description: "Valor do contrato em reais" },
+                status: { type: "string", enum: ["negotiation", "active", "completed", "paused"] }
+            },
+            required: ["name"],
+        },
+    },
+    {
+        name: "delete_project",
+        description: "Deleta uma obra/projeto pelo ID. AVISO: Isso deleta todos os serviços vinculados a ela em cascata. Peça confirmação expressa antes de usar.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID da obra a deletar" }
+            },
+            required: ["id"],
+        },
+    },
+    {
+        name: "list_services",
+        description: "Lista os serviços disponíveis no catálogo (para adicionar a obras) ou os serviços já vinculados a uma obra específica se project_id for fornecido.",
+        parameters: {
+            type: "object",
+            properties: {
+                project_id: { type: "string", description: "ID da obra (opcional, para listar serviços da obra)" }
+            },
+            required: [],
+        },
+    }
 ];
 
 // ─── Tool Handlers ────────────────────────────────────────────────────────────
@@ -231,6 +278,14 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
                 return await handleListCategories();
             case "get_projections":
                 return await handleGetProjections(args);
+            case "list_projects":
+                return await handleListProjects(args);
+            case "create_project":
+                return await handleCreateProject(args);
+            case "delete_project":
+                return await handleDeleteProject(args);
+            case "list_services":
+                return await handleListServices(args);
             default:
                 return JSON.stringify({ error: `Ferramenta desconhecida: ${name}` });
         }
@@ -464,4 +519,66 @@ async function handleGetProjections(args: any): Promise<string> {
         }));
 
     return JSON.stringify({ mesesProjetados: months, projection });
+}
+
+async function handleListProjects(args: any): Promise<string> {
+    const where: any = {};
+    if (args.status && args.status !== "todos") where.status = args.status;
+    if (args.search) where.name = { contains: args.search, mode: "insensitive" };
+
+    const projects = await prisma.projects.findMany({
+        where,
+        include: { entity: true, project_services: true },
+        orderBy: { start_date: "desc" },
+        take: 50,
+    });
+
+    const result = projects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        status: p.status,
+        contract_value: formatBRL(Number(p.contract_value || 0)),
+        client: p.entity?.name || p.client_name || "Sem cliente",
+        services_count: p.project_services.length,
+    }));
+    return JSON.stringify(result);
+}
+
+async function handleCreateProject(args: any): Promise<string> {
+    const p = await prisma.projects.create({
+        data: {
+            name: args.name,
+            client_name: args.client_name,
+            contract_value: args.contract_value ? Number(args.contract_value) : 0,
+            status: args.status || "negotiation",
+            start_date: new Date()
+        }
+    });
+    return JSON.stringify({ success: true, message: "Obra criada", project: p });
+}
+
+async function handleDeleteProject(args: any): Promise<string> {
+    if (!args.id) return JSON.stringify({ success: false, error: "ID não fornecido" });
+    await prisma.projects.delete({ where: { id: args.id } });
+    return JSON.stringify({ success: true, message: "Obra deletada com sucesso, incluindo seus serviços." });
+}
+
+async function handleListServices(args: any): Promise<string> {
+    if (args.project_id) {
+        // List services of a specific project
+        const ps = await prisma.project_services.findMany({
+            where: { project_id: args.project_id },
+            include: { service: true }
+        });
+        const result = ps.map(s => ({
+            id: s.id,
+            service_name: s.service.name,
+            quantity: Number(s.quantity),
+        }));
+        return JSON.stringify({ project_id: args.project_id, services: result });
+    } else {
+        // List catalog services
+        const s = await prisma.services.findMany({ take: 50, orderBy: { name: "asc" } });
+        return JSON.stringify(s.map(x => ({ id: x.id, code: x.code, name: x.name })));
+    }
 }
