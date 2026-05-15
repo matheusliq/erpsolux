@@ -31,15 +31,26 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
     let totalMaterialVenda = 0;
     let totalMOCusto = 0;
     let totalMOVenda = 0;
+    let totalOperCusto = 0;
+    let totalOperVenda = 0;
 
     servicesToRender.forEach((ps: any) => {
+        // Transações Operacionais
+        const serviceTransactions = project.transactions.filter((t: any) => 
+            (t.type === "Sa_da" || t.type === "Saída") && t.project_service_id === ps.id
+        );
+        const operCustoService = serviceTransactions.reduce((acc: number, t: any) => acc + (t.cost_amount || t.amount), 0);
+        const operVendaService = serviceTransactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+
+        totalOperCusto += operCustoService;
+        totalOperVenda += operVendaService;
+
         // Mão de Obra
         const moVendaService = ps.mo_type === "custom" && ps.mo_custom_value !== null
             ? ps.mo_custom_value
             : (ps.mo_custom_value ?? 0);
         
-        // Simulação de custo de MO (estimativa 40% do valor de venda caso não exista na base)
-        const moCustoService = moVendaService * 0.40;
+        const moCustoService = 0; // Custos agora vêm das transações operacionais reais
 
         totalMOCusto += moCustoService;
         totalMOVenda += moVendaService;
@@ -56,9 +67,9 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
         });
     });
 
-    const totalCusto = totalMaterialCusto + totalMOCusto;
+    const totalCusto = totalMaterialCusto + totalMOCusto + totalOperCusto;
     // Usa o contract_value ou a soma dos itens se o contrato for zero
-    const totalVendaFinal = project.contract_value > 0 ? project.contract_value : (totalMaterialVenda + totalMOVenda);
+    const totalVendaFinal = project.contract_value > 0 ? project.contract_value : (totalMaterialVenda + totalMOVenda + totalOperVenda);
     const margemBruta = totalVendaFinal - totalCusto;
     const margemPercentual = totalVendaFinal > 0 ? (margemBruta / totalVendaFinal) * 100 : 0;
 
@@ -111,9 +122,15 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm font-bold">{project.entity?.name ?? "Cliente"}</p>
-                        <p className="text-xs text-zinc-600 mt-1">{project.name}</p>
-                        <p className="text-xs text-zinc-400 mt-1">
+                        <p className="text-sm font-bold hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5 inline-block" contentEditable suppressContentEditableWarning spellCheck={false}>
+                            {project.entity?.name ?? "Cliente"}
+                        </p>
+                        <br />
+                        <p className="text-xs text-zinc-600 mt-1 hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5 inline-block" contentEditable suppressContentEditableWarning spellCheck={false}>
+                            {project.name}
+                        </p>
+                        <br />
+                        <p className="text-xs text-zinc-400 mt-1 hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5 inline-block" contentEditable suppressContentEditableWarning spellCheck={false}>
                             {format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                         </p>
                     </div>
@@ -124,7 +141,8 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                     <div className="space-y-10">
                         <section>
                             <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-                                <Settings size={18} className="text-emerald-600" /> Introdução
+                                <Settings size={18} className="text-emerald-600" />
+                                <span className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Introdução</span>
                             </h2>
                             <p 
                                 className="text-sm leading-relaxed text-zinc-700 text-justify hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-1 -m-1"
@@ -137,7 +155,8 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
 
                         <section>
                             <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-                                <CheckCircle2 size={18} className="text-emerald-600" /> Escopo Técnico
+                                <CheckCircle2 size={18} className="text-emerald-600" />
+                                <span className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Escopo Técnico</span>
                             </h2>
                             <div className="space-y-4">
                                 {servicesToRender.length === 0 ? (
@@ -200,6 +219,26 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                             }
                                                             return null;
                                                         })()}
+                                                        {(() => {
+                                                            const serviceTransactions = project.transactions.filter((t: any) => 
+                                                                (t.type === "Sa_da" || t.type === "Saída") && t.project_service_id === ps.id
+                                                            );
+                                                            const operVendaService = serviceTransactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+
+                                                            if (operVendaService > 0) {
+                                                                return (
+                                                                    <tr className="bg-zinc-50 border-t border-zinc-200">
+                                                                        <td className="p-2 font-medium text-zinc-600" colSpan={3} contentEditable suppressContentEditableWarning spellCheck={false}>
+                                                                            Custos Operacionais
+                                                                        </td>
+                                                                        <td className="p-2 text-right font-medium" contentEditable suppressContentEditableWarning spellCheck={false}>
+                                                                            {formatBRL(operVendaService)}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -210,10 +249,12 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-bold mb-4 border-t border-zinc-200 pt-6">Investimento</h2>
+                            <h2 className="text-xl font-bold mb-4 border-t border-zinc-200 pt-6">
+                                <span className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Investimento</span>
+                            </h2>
                             <div className="bg-zinc-900 text-white p-6 rounded-xl flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-zinc-400 mb-1 uppercase tracking-wider">Valor Global do Escopo</p>
+                                    <p className="text-sm text-zinc-400 mb-1 uppercase tracking-wider hover:bg-zinc-800 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5 inline-block" contentEditable suppressContentEditableWarning spellCheck={false}>Valor Global do Escopo</p>
                                     <p className="text-3xl font-black tracking-tight">{formatBRL(totalVendaFinal)}</p>
                                 </div>
                                 <div className="text-right text-xs text-zinc-400 space-y-1">
@@ -250,8 +291,12 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                     <p className="text-lg font-bold text-zinc-900 mt-1">{formatBRL(totalMaterialCusto)}</p>
                                 </div>
                                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg">
-                                    <p className="text-xs text-zinc-500 uppercase font-medium">Custo MO/Operação</p>
+                                    <p className="text-xs text-zinc-500 uppercase font-medium">Custo MO</p>
                                     <p className="text-lg font-bold text-zinc-900 mt-1">{formatBRL(totalMOCusto)}</p>
+                                </div>
+                                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg">
+                                    <p className="text-xs text-zinc-500 uppercase font-medium">Custos Operacionais</p>
+                                    <p className="text-lg font-bold text-zinc-900 mt-1">{formatBRL(totalOperCusto)}</p>
                                 </div>
                                 <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg">
                                     <p className="text-xs text-zinc-500 uppercase font-medium">Venda Total Projetada</p>
@@ -277,8 +322,14 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                         vendaMatLocal += item.material.is_resale ? c * item.material.markup_factor : c;
                                     });
 
+                                    const serviceTransactions = project.transactions.filter((t: any) => 
+                                        (t.type === "Sa_da" || t.type === "Saída") && t.project_service_id === ps.id
+                                    );
+                                    const operCustoLocal = serviceTransactions.reduce((acc: number, t: any) => acc + (t.cost_amount || t.amount), 0);
+                                    const operVendaLocal = serviceTransactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+
                                     const moVenda = ps.mo_type === "custom" && ps.mo_custom_value !== null ? ps.mo_custom_value : (ps.mo_custom_value ?? 0);
-                                    const margemLocal = (vendaMatLocal + moVenda) - (custoMatLocal + (moVenda * 0.40));
+                                    const margemLocal = (vendaMatLocal + moVenda + operVendaLocal) - (custoMatLocal + operCustoLocal);
 
                                     return (
                                         <div key={ps.id} className="border border-zinc-200 rounded-lg overflow-hidden">
@@ -315,6 +366,22 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                             <td className="p-2 font-medium" colSpan={2}>Mão de Obra e Lançamentos (Venda)</td>
                                                             <td className="p-2 text-right" colSpan={3}>{formatBRL(moVenda)}</td>
                                                         </tr>
+                                                        {/* Transações Operacionais Detalhadas */}
+                                                        {serviceTransactions.length > 0 && serviceTransactions.map((t: any) => (
+                                                            <tr key={t.id} className="bg-orange-50/50">
+                                                                <td className="p-2 font-medium" colSpan={2}>
+                                                                    <span className="font-mono text-[10px] bg-orange-100 text-orange-800 px-1 py-0.5 rounded mr-2">OPERAÇÃO</span>
+                                                                    {t.name}
+                                                                </td>
+                                                                <td className="p-2 text-right text-zinc-500">{formatBRL(t.cost_amount || t.amount)}</td>
+                                                                <td className="p-2 text-right">{formatBRL(t.cost_amount || t.amount)}</td>
+                                                                <td className="p-2 text-right font-mono text-[10px]">
+                                                                    {t.markup > 1 ? `x${t.markup}` : "Sem Mkup"}
+                                                                    <br />
+                                                                    <span className="text-emerald-600 font-bold ml-1">V: {formatBRL(t.amount)}</span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
                                                     </tbody>
                                                 </table>
                                             </div>
