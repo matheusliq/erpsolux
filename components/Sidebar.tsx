@@ -160,7 +160,7 @@ export default function Sidebar() {
         <>
             {/* Mobile hamburger */}
             <button
-                className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 rounded-xl bg-card border border-zinc-800 flex items-center justify-center text-foreground shadow-xl"
+                className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 rounded-xl bg-card border border-zinc-800 flex items-center justify-center text-foreground shadow-xl print:hidden"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Abrir menu"
             >
@@ -189,7 +189,7 @@ export default function Sidebar() {
                 )}
 
             {/* Desktop sidebar */}
-            <aside className="hidden md:flex w-60 flex-col h-screen shrink-0 bg-[#0d0f12] border-r border-zinc-800/60">
+            <aside className="hidden md:flex w-60 flex-col h-screen shrink-0 bg-[#0d0f12] border-r border-zinc-800/60 print:hidden">
                 < SidebarContent />
             </aside >
         </>
