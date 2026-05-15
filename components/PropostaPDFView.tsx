@@ -149,19 +149,60 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                                 <span className="bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded text-xs">{idx + 1}</span>
                                                 {ps.service.name}
                                             </h3>
-                                            <ul className="mt-3 space-y-1">
-                                                {ps.service.service_items.map((item: any) => (
-                                                    <li key={item.id} className="text-xs text-zinc-600 flex items-center gap-2">
-                                                        <div className="w-1 h-1 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                                                        <span 
-                                                            className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors w-full p-0.5 -ml-0.5"
-                                                            contentEditable suppressContentEditableWarning spellCheck={false}
-                                                        >
-                                                            {item.material.description} ({item.quantity} {item.material.unit})
-                                                        </span>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            <div className="overflow-x-auto mt-3">
+                                                <table className="w-full text-xs text-left">
+                                                    <thead className="bg-zinc-100 text-zinc-500 border-b border-zinc-200">
+                                                        <tr>
+                                                            <th className="p-2 font-medium">Item / Descrição</th>
+                                                            <th className="p-2 font-medium text-center">Qtd</th>
+                                                            <th className="p-2 font-medium text-right">Valor Unit.</th>
+                                                            <th className="p-2 font-medium text-right">Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-zinc-100">
+                                                        {ps.service.service_items.map((item: any) => {
+                                                            const materialVendaUnit = item.material.is_resale 
+                                                                ? item.material.cost_price * item.material.markup_factor 
+                                                                : item.material.cost_price;
+                                                            const materialVendaTotal = materialVendaUnit * item.quantity;
+                                                            
+                                                            return (
+                                                                <tr key={item.id} className="text-zinc-700">
+                                                                    <td className="p-2">
+                                                                        <span 
+                                                                            className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors block w-full p-0.5 -ml-0.5"
+                                                                            contentEditable suppressContentEditableWarning spellCheck={false}
+                                                                        >
+                                                                            {item.material.description}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="p-2 text-center" contentEditable suppressContentEditableWarning spellCheck={false}>
+                                                                        {item.quantity} <span className="text-[10px] text-zinc-400">{item.material.unit}</span>
+                                                                    </td>
+                                                                    <td className="p-2 text-right text-zinc-500" contentEditable suppressContentEditableWarning spellCheck={false}>{formatBRL(materialVendaUnit)}</td>
+                                                                    <td className="p-2 text-right font-medium" contentEditable suppressContentEditableWarning spellCheck={false}>{formatBRL(materialVendaTotal)}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                        {(() => {
+                                                            const moVenda = ps.mo_type === "custom" && ps.mo_custom_value !== null ? ps.mo_custom_value : (ps.mo_custom_value ?? 0);
+                                                            if (moVenda > 0) {
+                                                                return (
+                                                                    <tr className="bg-zinc-50 border-t border-zinc-200">
+                                                                        <td className="p-2 font-medium text-zinc-600" colSpan={3} contentEditable suppressContentEditableWarning spellCheck={false}>
+                                                                            Mão de Obra Especializada / Instalação
+                                                                        </td>
+                                                                        <td className="p-2 text-right font-medium" contentEditable suppressContentEditableWarning spellCheck={false}>
+                                                                            {formatBRL(moVenda)}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     ))
                                 )}
