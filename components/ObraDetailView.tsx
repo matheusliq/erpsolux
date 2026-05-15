@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import {
     Trash2, Pencil, Check, X, ShieldCheck,
     Package, Receipt, TrendingUp, DollarSign, Percent, Plus,
-    ArrowLeft, ShoppingCart, Wrench, Search, Loader2, Zap, ChevronDown, ArrowUp, ArrowDown
+    ArrowLeft, ShoppingCart, Wrench, Search, Loader2, Zap, ChevronDown, ArrowUp, ArrowDown, FileText
 } from "lucide-react";
+import Link from "next/link";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -52,7 +53,7 @@ type Category = { id: string; name: string; color: string; type?: string; is_mat
 
 export type Project = {
     id: string; name: string; status: string | null; contract_value: number | null;
-    entity: { name: string } | null;
+    entity: { id?: string; name: string } | null;
     project_services: ProjectService[];
     transactions: Transaction[];
 };
@@ -673,10 +674,6 @@ function ExpensesTab({
 
     return (
         <div className="space-y-4">
-            {/* MO e Margem de Segurança vivem agora na aba Operacional */}
-            <MOPanel ps={projectService} operCustos={operCustos.custo} onRefresh={onRefresh} />
-            <SafetyMarginPanel ps={projectService} vendaBase={totals.vendaBase} onRefresh={onRefresh} />
-
             <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                     Custos diretos deste serviço (diárias, logística, refeições, materiais extras, etc.)
@@ -1397,6 +1394,11 @@ export function ObraDetailView({ project, categories }: {
                             onClick={() => { setModalServiceId(undefined); setModalOpen(true); }}>
                             <Plus size={11} /> Lançamento Geral
                         </Button>
+                        <Link href={`/clientes/${project.entity?.id ?? "0"}/obras/${project.id}/proposta`}>
+                            <button className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg px-3 py-1.5 h-8 font-semibold transition-all">
+                                <FileText size={11} /> Gerar Proposta PDF
+                            </button>
+                        </Link>
                     </div>
                 )}
             </div>
@@ -1504,6 +1506,10 @@ export function ObraDetailView({ project, categories }: {
                                             </Button>
                                         )}
                                     </div>
+                                </div>
+                                <div className="p-4 space-y-4 bg-muted/10 border-b border-border">
+                                    <MOPanel ps={ps} operCustos={operCustosDoServico.custo} onRefresh={refresh} />
+                                    <SafetyMarginPanel ps={ps} vendaBase={calcServiceTotals(ps, operCustosDoServico).vendaBase} onRefresh={refresh} />
                                 </div>
                                 <div className="p-4">
                                     <Tabs defaultValue="materiais">
