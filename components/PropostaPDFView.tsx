@@ -74,7 +74,14 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
     const margemPercentual = totalVendaFinal > 0 ? (margemBruta / totalVendaFinal) * 100 : 0;
 
     return (
-        <div className="min-h-screen bg-muted/20 pb-20">
+        <div className="min-h-screen bg-muted/20 pb-20 print:bg-white print:pb-0">
+            <style dangerouslySetInnerHTML={{__html: `
+                @media print {
+                    @page { margin: 15mm; size: A4 portrait; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
+                    ::-webkit-scrollbar { display: none; }
+                }
+            `}} />
             {/* Header / Barra de Ferramentas (Oculto na impressão) */}
             <div className="print:hidden bg-background border-b border-border p-4 sticky top-0 z-50 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -163,13 +170,13 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                     <p className="text-sm text-zinc-500 italic">Nenhum serviço cadastrado.</p>
                                 ) : (
                                     servicesToRender.map((ps: any, idx: number) => (
-                                        <div key={ps.id} className="bg-zinc-50 p-4 rounded-lg border border-zinc-100">
+                                        <div key={ps.id} className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 print:break-inside-avoid">
                                             <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
                                                 <span className="bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded text-xs">{idx + 1}</span>
                                                 {ps.service.name}
                                             </h3>
-                                            <div className="overflow-x-auto mt-3 w-full pb-2">
-                                                <table className="w-full text-xs text-left min-w-[600px]">
+                                            <div className="overflow-x-auto print:overflow-visible mt-3 w-full pb-2 print:pb-0">
+                                                <table className="w-full text-xs text-left min-w-[600px] print:min-w-full">
                                                     <thead className="bg-zinc-100 text-zinc-500 border-b border-zinc-200">
                                                         <tr>
                                                             <th className="p-2 font-medium">Item / Descrição</th>
@@ -248,7 +255,7 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                             </div>
                         </section>
 
-                        <section>
+                        <section className="print:break-inside-avoid">
                             <h2 className="text-xl font-bold mb-4 border-t border-zinc-200 pt-6">
                                 <span className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Investimento</span>
                             </h2>
@@ -264,7 +271,7 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                             </div>
                         </section>
 
-                        <section className="text-xs text-zinc-500 bg-zinc-50 p-4 rounded-lg border border-zinc-100 mt-8">
+                        <section className="text-xs text-zinc-500 bg-zinc-50 p-4 rounded-lg border border-zinc-100 mt-8 print:break-inside-avoid">
                             <h4 className="font-bold text-zinc-700 mb-2">Condições Comerciais e Garantia</h4>
                             <ul className="list-disc pl-4 space-y-1 outline-none" contentEditable suppressContentEditableWarning spellCheck={false}>
                                 <li className="hover:bg-zinc-100/50 rounded transition-colors p-0.5"><strong>Garantia:</strong> 12 meses contra desplacamentos decorrentes de falhas de preparação de superfície.</li>
@@ -332,13 +339,13 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
                                     const margemLocal = (vendaMatLocal + moVenda + operVendaLocal) - (custoMatLocal + operCustoLocal);
 
                                     return (
-                                        <div key={ps.id} className="border border-zinc-200 rounded-lg overflow-hidden">
+                                        <div key={ps.id} className="border border-zinc-200 rounded-lg overflow-hidden print:break-inside-avoid print:mb-6">
                                             <div className="bg-zinc-100 p-3 flex justify-between items-center border-b border-zinc-200">
                                                 <h3 className="font-bold text-sm text-zinc-800">{idx + 1}. {ps.service.name}</h3>
                                                 <span className="text-xs font-bold text-emerald-600">Margem: {formatBRL(margemLocal)}</span>
                                             </div>
-                                            <div className="p-0 overflow-x-auto w-full pb-2">
-                                                <table className="w-full text-xs text-left min-w-[600px]">
+                                            <div className="p-0 overflow-x-auto print:overflow-visible w-full pb-2 print:pb-0">
+                                                <table className="w-full text-xs text-left min-w-[600px] print:min-w-full">
                                                     <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-100">
                                                         <tr>
                                                             <th className="p-2 font-medium">SKU / Insumo</th>
