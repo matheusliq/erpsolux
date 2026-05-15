@@ -328,8 +328,8 @@ export function PropostaPDFView({ project, entityId, categories }: { project: an
 
                 {/* Rodapé Padrão */}
                 <div className="mt-16 pt-8 border-t border-zinc-200 text-center text-[10px] text-zinc-400">
-                    <p>Solux Pinturas e Revestimentos EIRELI | CNPJ: XX.XXX.XXX/0001-XX</p>
-                    <p>Documento gerado automaticamente pelo ERP Solux.</p>
+                    <p className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Solux Pinturas e Revestimentos EIRELI | CNPJ: XX.XXX.XXX/0001-XX</p>
+                    <p className="hover:bg-zinc-100/50 outline-none focus:ring-1 focus:ring-emerald-500/20 rounded transition-colors p-0.5" contentEditable suppressContentEditableWarning spellCheck={false}>Documento gerado automaticamente pelo ERP Solux.</p>
                 </div>
             </div>
         </div>
