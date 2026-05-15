@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -160,8 +160,8 @@ function calcMO(ps: ProjectService, matCusto: number, operCusto: number): { moVe
         const moVenda = (matCusto + operCusto) * ps.mo_custom_value;
         return { moVenda, moCusto };
     }
-    // fixed: mo_custom_value é o valor fixo de venda da MO, ou fallback para mo_sell_value
-    const moVenda = ps.mo_custom_value ?? ps.service.mo_sell_value;
+    // fixed: mo_custom_value é o valor fixo de venda da MO, ou 0 por padrão para evitar custos fantasmas
+    const moVenda = ps.mo_custom_value ?? 0;
     return { moVenda, moCusto };
 }
 
@@ -226,7 +226,7 @@ function MOPanel({ ps, operCustos, onRefresh }: {
     const [moType, setMoType] = useState<"fixed" | "markup">(
         (ps.mo_type as "fixed" | "markup") ?? "fixed"
     );
-    const [moVal, setMoVal] = useState(ps.mo_custom_value ?? ps.service.mo_sell_value);
+    const [moVal, setMoVal] = useState(ps.mo_custom_value ?? 0);
     const [, startTransition] = useTransition();
 
     const matCusto = ps.service.service_items.reduce((a, si) => a + si.material.cost_price * si.quantity, 0);
@@ -1287,13 +1287,14 @@ function ServiceNameEditor({ service, onRefresh }: { service: Service; onRefresh
         </button>
     );
 }
-
 // ─── Main Export ───────────────────────────────────────────────────────────────
 export function ObraDetailView({ project, categories }: {
     project: Project;
     categories: { id: string; name: string; color: string; type?: string }[];
 }) {
     const router = useRouter();
+    const params = useParams();
+    const entityIdUrl = params.entityId as string;
     const refresh = () => router.refresh();
     const [modalOpen, setModalOpen] = useState(false);
     const [focusedServiceId, setFocusedServiceId] = useState<string | null>(null);
@@ -1394,11 +1395,6 @@ export function ObraDetailView({ project, categories }: {
                             onClick={() => { setModalServiceId(undefined); setModalOpen(true); }}>
                             <Plus size={11} /> Lançamento Geral
                         </Button>
-                        <Link href={`/clientes/${project.entity?.id ?? "0"}/obras/${project.id}/proposta`}>
-                            <button className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg px-3 py-1.5 h-8 font-semibold transition-all">
-                                <FileText size={11} /> Gerar Proposta PDF
-                            </button>
-                        </Link>
                     </div>
                 )}
             </div>
@@ -1500,10 +1496,17 @@ export function ObraDetailView({ project, categories }: {
                                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                         </div>
                                         {focusedServiceId && (
-                                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-                                                onClick={() => openModalForService(ps.id)}>
-                                                <Plus size={11} /> Custo
-                                            </Button>
+                                            <>
+                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                                                    onClick={() => openModalForService(ps.id)}>
+                                                    <Plus size={11} /> Custo
+                                                </Button>
+                                                <Link href={`/clientes/${entityIdUrl}/obras/${project.id}/proposta?serviceId=${ps.id}`}>
+                                                    <button className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg px-3 py-1.5 h-7 font-semibold transition-all">
+                                                        <FileText size={11} /> Gerar Proposta PDF
+                                                    </button>
+                                                </Link>
+                                            </>
                                         )}
                                     </div>
                                 </div>
