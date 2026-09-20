@@ -2,8 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-// Aceita o certificado self-signed do pooler Supabase sem quebrar o handshake TLS
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// NÃO reintroduzir `process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'` aqui.
+// Aquilo desligava a validação TLS do processo Node INTEIRO — não só do Postgres —
+// deixando toda chamada HTTPS do servidor (Gemini, Resend, futura SEFAZ) sujeita a
+// interceptação. O certificado do pooler Supabase já é tratado no `ssl` do Pool abaixo,
+// que é restrito à conexão do banco.
 
 /**
  * REGRA PERMANENTE — Solux ERP + Supabase:

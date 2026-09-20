@@ -1,5 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TOOL_DECLARATIONS, executeTool } from "@/lib/iago-tools";
+import { requireSession } from "@/lib/auth-guard";
+
+/**
+ * Autorização por ferramenta — aplicada NO CÓDIGO, não no prompt.
+ *
+ * O system prompt pede à IA que não exclua sem confirmar, mas instrução em
+ * linguagem natural não é controle de segurança: é exatamente isso que um
+ * ataque de prompt injection contorna. A lista abaixo é a barreira real.
+ *
+ * Operações destrutivas e irreversíveis ficam FORA do alcance da IA —
+ * apagar obra em cascata ou transações em massa exige um humano clicando
+ * num botão com confirmação na tela.
+ */
+const TOOLS_BLOQUEADAS_PARA_IA = new Set([
+    "bulk_delete_transactions",
+    "delete_project",
+]);
+
+// Ferramentas de escrita: exigem papel admin ou manager
+const TOOLS_DE_ESCRITA = new Set([
+    "create_transaction",
+    "update_transaction",
+    "delete_transaction",
+    "create_project",
+]);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -90,6 +115,15 @@ async function callGemini(body: object): Promise<{ response: Response; model: st
 
 // ─── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+    // Esta rota dá ao LLM acesso de leitura E escrita ao banco via function calling.
+    // Sem sessão, um estranho poderia conversar com a IA e mandar apagar obras.
+    let sessionUser;
+    try {
+        sessionUser = await requireSession();
+    } catch {
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
     try {
         if (!GEMINI_API_KEY) {
             return NextResponse.json({ error: "GEMINI_API_KEY não configurada" }, { status: 500 });
@@ -166,7 +200,20 @@ export async function POST(req: NextRequest) {
                     dataChanged = true;
                 }
 
-                const toolResult = await executeTool(name, args || {});
+                // ── Barreira de autorização (no código, não no prompt) ──────────
+                let toolResult: any;
+                if (TOOLS_BLOQUEADAS_PARA_IA.has(name)) {
+                    console.warn(`[Iago] BLOQUEADO: ${name} por ${sessionUser.username}`);
+                    toolResult = {
+                        error: "Esta operação é irreversível e não pode ser feita pelo assistente. " +
+                               "Use a tela correspondente do ERP, onde há confirmação explícita.",
+                    };
+                } else if (TOOLS_DE_ESCRITA.has(name) && !["admin", "manager"].includes(sessionUser.role)) {
+                    console.warn(`[Iago] NEGADO: ${name} para papel ${sessionUser.role}`);
+                    toolResult = { error: "Seu perfil não tem permissão para alterar dados." };
+                } else {
+                    toolResult = await executeTool(name, args || {});
+                }
 
                 // Append model message with function call
                 contents.push({

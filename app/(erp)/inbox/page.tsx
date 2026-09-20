@@ -96,6 +96,10 @@ export default function InboxPage() {
     const [iagoOpen, setIagoOpen] = useState(false);
     const [editTx, setEditTx] = useState<Transaction | null>(null);
 
+    // ── Exportação ───────────────────────────────────────────────────────────
+    const [exportOpen, setExportOpen] = useState(false);
+    const [exporting, setExporting] = useState(false);
+
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
@@ -123,16 +127,6 @@ export default function InboxPage() {
         return () => window.removeEventListener("iago_data_changed", handleRefresh);
     }, [loadData]);
 
-    // ── Summaries ─────────────────────────────────────────────────────────────
-    const entradas = transactions.filter(t => t.type === "Entrada");
-    const saidas = transactions.filter(t => t.type !== "Entrada");
-    const impostos = saidas.filter(t => t.notes?.includes(TAX_MARKER));
-
-    const totalEntradas = entradas.reduce((a, t) => a + t.amount, 0);
-    const totalSaidas = saidas.reduce((a, t) => a + t.amount, 0);
-    const totalImpostos = impostos.reduce((a, t) => a + t.amount, 0);
-    const saldoLiquido = totalEntradas - totalSaidas;
-
     // ── Filter count ──────────────────────────────────────────────────────────
     const activeFilters = [
         filterType !== "todos",
@@ -156,6 +150,19 @@ export default function InboxPage() {
         return true;
     });
 
+    // ── Summaries ─────────────────────────────────────────────────────────────
+    // Calculados sobre `filtered` (não sobre `transactions`) para que os cards
+    // batam exatamente com as linhas exibidas na tabela e com o que é exportado.
+    // O período já vem filtrado do servidor; aqui aplicamos tipo/status/categoria/busca.
+    const entradas = filtered.filter(t => t.type === "Entrada");
+    const saidas = filtered.filter(t => t.type !== "Entrada");
+    const impostos = saidas.filter(t => t.notes?.includes(TAX_MARKER));
+
+    const totalEntradas = entradas.reduce((a, t) => a + t.amount, 0);
+    const totalSaidas = saidas.reduce((a, t) => a + t.amount, 0);
+    const totalImpostos = impostos.reduce((a, t) => a + t.amount, 0);
+    const saldoLiquido = totalEntradas - totalSaidas;
+
     // ── Iago context ──────────────────────────────────────────────────────────
     const iagoContext = {
         periodo: `${fmtDate(filterStartDate)} a ${fmtDate(filterEndDate)}`,
@@ -169,6 +176,50 @@ export default function InboxPage() {
 
     const openEdit = (tx: Transaction) => { setEditTx(tx); setTxModalOpen(true); };
     const openNew = () => { setEditTx(null); setTxModalOpen(true); };
+
+    // ── Exportação ────────────────────────────────────────────────────────────
+    // Exporta exatamente `filtered` (o que está na tela), e o resumo do arquivo
+    // é recalculado sobre essas mesmas linhas — nunca diverge da lista.
+    const filtrosExport = () => ({
+        inicio: filterStartDate,
+        fim: filterEndDate,
+        tipo: filterType,
+        status: filterStatus,
+        categoria: filterCategoryId === "todas"
+            ? "todas"
+            : (categories.find(c => c.id === filterCategoryId)?.name ?? "—"),
+        busca: search,
+    });
+
+    const handleExportExcel = async () => {
+        if (exporting) return;
+        setExporting(true);
+        try {
+            const { exportarExcel } = await import("@/lib/export-lancamentos");
+            await exportarExcel(filtered, filtrosExport());
+        } catch (err) {
+            console.error("Falha ao exportar Excel:", err);
+            alert("Não foi possível gerar o Excel. Tente novamente.");
+        } finally {
+            setExporting(false);
+            setExportOpen(false);
+        }
+    };
+
+    const handleExportPDF = async () => {
+        if (exporting) return;
+        setExporting(true);
+        try {
+            const { exportarPDF } = await import("@/lib/export-lancamentos");
+            exportarPDF(filtered, filtrosExport());
+        } catch (err) {
+            console.error("Falha ao exportar PDF:", err);
+            alert("Não foi possível gerar o PDF. Tente novamente.");
+        } finally {
+            setExporting(false);
+            setExportOpen(false);
+        }
+    };
 
     return (
         <div className="p-4 md:p-8 bg-background text-foreground min-h-full font-sans flex flex-col gap-5">
@@ -185,9 +236,58 @@ export default function InboxPage() {
                         <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-blue-800 flex items-center justify-center text-[9px] font-black text-foreground shrink-0">I</span>
                         Assistente IA
                     </Button>
-                    <Button variant="outline" className="border-zinc-700 bg-card hover:bg-zinc-800 text-zinc-300 text-xs font-semibold gap-2 h-9">
-                        <Download size={15} /> Exportar
-                    </Button>
+                    <div className="relative">
+                        <Button
+                            onClick={() => setExportOpen(o => !o)}
+                            disabled={exporting || loading}
+                            variant="outline"
+                            className="border-zinc-700 bg-card hover:bg-zinc-800 text-zinc-300 text-xs font-semibold gap-2 h-9"
+                        >
+                            {exporting
+                                ? <Loader2 size={15} className="animate-spin" />
+                                : <Download size={15} />}
+                            Exportar
+                        </Button>
+
+                        {exportOpen && !exporting && (
+                            <>
+                                {/* clique fora fecha o menu */}
+                                <div className="fixed inset-0 z-40" onClick={() => setExportOpen(false)} />
+                                <div className="absolute right-0 mt-1 z-50 w-60 rounded-lg border border-zinc-700 bg-card shadow-xl overflow-hidden">
+                                    <div className="px-3 py-2 border-b border-zinc-800">
+                                        <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">
+                                            Exportar {filtered.length} lançamento{filtered.length !== 1 ? "s" : ""}
+                                        </p>
+                                        <p className="text-[10px] text-zinc-600 mt-0.5">
+                                            {filterStartDate || filterEndDate
+                                                ? `${filterStartDate ? fmtDate(filterStartDate) : "início"} a ${filterEndDate ? fmtDate(filterEndDate) : "hoje"}`
+                                                : "Todo o período"}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleExportExcel}
+                                        className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                                    >
+                                        <Download size={14} className="text-emerald-400 shrink-0" />
+                                        <span>
+                                            <span className="font-semibold block">Excel (.xlsx)</span>
+                                            <span className="text-[10px] text-zinc-500">Para o contábil — valores somáveis</span>
+                                        </span>
+                                    </button>
+                                    <button
+                                        onClick={handleExportPDF}
+                                        className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2 border-t border-zinc-800"
+                                    >
+                                        <Download size={14} className="text-blue-400 shrink-0" />
+                                        <span>
+                                            <span className="font-semibold block">PDF</span>
+                                            <span className="text-[10px] text-zinc-500">Para apresentar ao cliente</span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                     <Button onClick={openNew} className="bg-[#0056b3] hover:bg-[#004494] text-foreground text-xs font-bold uppercase tracking-wider gap-2 h-9 px-5 shadow-[0_0_20px_rgba(0,86,179,0.25)]">
                         <Plus size={15} /> Novo Lançamento
                     </Button>

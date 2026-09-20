@@ -10,10 +10,17 @@ build/
 
 # Ambiente (NUNCA commitar esses arquivos!)
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Credenciais de conexão e backups locais do banco
+.pgenv.sh
+.pooler_url
+backups/
+*.dump
 
 # Logs
 npm-debug.log*

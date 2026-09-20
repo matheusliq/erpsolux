@@ -14,13 +14,9 @@ export const authOptions: NextAuthOptions = {
             async authorize(credentials) {
                 if (!credentials?.username || !credentials?.password) return null;
 
-                const isMasterLogin = 
-                    credentials.username.toLowerCase() === "matheus.liquer" && 
-                    credentials.password === "SoluxPinturas123";
-
                 try {
                     const user = await prisma.users.findFirst({
-                        where: { 
+                        where: {
                             username: {
                                 equals: credentials.username,
                                 mode: 'insensitive'
@@ -28,39 +24,22 @@ export const authOptions: NextAuthOptions = {
                         }
                     });
 
-                    if (user) {
-                        const isValid = await bcrypt.compare(credentials.password, user.password);
-                        if (isValid || isMasterLogin) {
-                             return {
-                                id: user.id,
-                                name: user.name,
-                                username: user.username,
-                                role: user.role
-                            };
-                        }
-                    }
+                    if (!user) return null;
 
-                    // Fallback master para liberar a passagem caso o DB falhe/neste user
-                    if (isMasterLogin) {
-                        return {
-                            id: "00000000-0000-0000-0000-000000000001",
-                            name: "Matheus Liquer (Master)",
-                            username: "matheus.liquer",
-                            role: "admin"
-                        };
-                    }
+                    const isValid = await bcrypt.compare(credentials.password, user.password);
+                    if (!isValid) return null;
 
-                    return null;
+                    return {
+                        id: user.id,
+                        name: user.name,
+                        username: user.username,
+                        role: user.role
+                    };
                 } catch (e) {
-                    console.error("ERRO NO BANCO - PRISMA OU BCRYPT:", e);
-                    if (isMasterLogin) {
-                        return {
-                            id: "00000000-0000-0000-0000-000000000001",
-                            name: "Matheus Liquer (Master)",
-                            username: "matheus.liquer",
-                            role: "admin"
-                        };
-                    }
+                    // FAIL CLOSED: se o banco falhar, ninguém entra.
+                    // O comportamento anterior liberava acesso admin quando o banco caía,
+                    // o que transformava uma indisponibilidade em bypass de autenticação.
+                    console.error("Erro ao autenticar:", e);
                     return null;
                 }
             }
@@ -87,7 +66,13 @@ export const authOptions: NextAuthOptions = {
             return session;
         }
     },
-    secret: process.env.NEXTAUTH_SECRET || "solux-default-secret-key-12345",
+    // Sem fallback: este segredo assina os tokens de sessão. Um valor previsível
+    // permite forjar uma sessão de admin sem senha. Melhor falhar o boot.
+    secret: (() => {
+        const s = process.env.NEXTAUTH_SECRET;
+        if (!s) throw new Error("NEXTAUTH_SECRET não definido. Configure a variável de ambiente.");
+        return s;
+    })(),
     session: {
         strategy: "jwt",
     }

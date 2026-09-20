@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,15 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
-      <body className={`${inter.className} bg-background text-foreground flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible`}>
+      <body className={`${inter.className} bg-background text-foreground min-h-screen antialiased print:block print:h-auto print:overflow-visible`}>
         <Providers>
-          {/* O nosso novo Menu Lateral */}
-          <Sidebar />
-
-          {/* A área principal onde o Kanban e outras telas vão aparecer */}
-          <main className="flex-1 overflow-y-auto bg-background pt-16 md:pt-0 print:block print:overflow-visible print:pt-0">
-            {children}
-          </main>
+          {children}
         </Providers>
       </body>
     </html>

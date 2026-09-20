@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "kill $(lsof -t -i:3000) 2>/dev/null || true; next dev --webpack",
+    "dev": "next dev --webpack",
     "dev:turbo": "next dev --turbopack",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -29,7 +29,8 @@
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
     "shadcn": {

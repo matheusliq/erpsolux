@@ -63,6 +63,14 @@ const NAV_GROUPS = [
             { href: "/auditoria", icon: ShieldCheck, label: "Auditoria Geral" },
         ],
     },
+    {
+        label: "Apresentação",
+        items: [
+            {
+                href: "/landing", icon: LayoutDashboard, label: "Modelos Landing Page"
+            },
+        ],
+    },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
