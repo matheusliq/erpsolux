@@ -18,9 +18,13 @@ RUN npx prisma generate
 # Copy application source
 COPY . .
 
-# Build Next.js
+# Build Next.js with placeholder env vars for static analysis
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV DATABASE_URL="postgresql://postgres:dummy@localhost:5432/postgres"
+ENV DIRECT_URL="postgresql://postgres:dummy@localhost:5432/postgres"
+ENV NEXTAUTH_SECRET="solux-build-placeholder-secret-12345"
+ENV NEXTAUTH_URL="http://localhost:3000"
 RUN npm run build
 
 # --- Runner Stage ---
