@@ -53,3 +53,8 @@ __pycache__/
 *.py[cod]
 .vercel
 .env*.local
+.env*
+
+compile_proposta.py
+nul
+proposta_viana.*

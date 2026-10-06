@@ -40,9 +40,14 @@ if (process.env.NODE_ENV !== "production") {
     console.log("[Prisma] Conectando via pool:", connectionString.split("@")[1]?.split("/")[0] ?? "host desconhecido");
 }
 
+const isSsl = process.env.DATABASE_SSL === "true" ||
+    connectionString.includes("sslmode=require") ||
+    connectionString.includes("supabase.co") ||
+    connectionString.includes("pooler.supabase.com");
+
 const pool = new Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: isSsl ? { rejectUnauthorized: false } : undefined,
     // Timeout conservador para detectar falhas rápido e não travar o servidor
     connectionTimeoutMillis: 10_000,
     idleTimeoutMillis: 30_000,
